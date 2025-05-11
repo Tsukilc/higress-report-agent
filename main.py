@@ -22,7 +22,7 @@ SYSTEM_INSTRUCTION = '''
 1. 获取优质PR列表：
    - 使用get_good_pull_requests工具来获取本月评分最高的PR列表
    - 必须传入参数：owner="alibaba", repo="higress", month=当前月份 , perPage=100
-   - 此工具会自动对PR进行评分并返回前10个最高质量的PR
+   - 此工具会自动对PR进行评分并返回10个最高质量的PR，必须全部总结展示
 
 2. 获取新手友好Issue：
    - 使用get_good_first_issues工具获取 labels 为"good first issue"的开放问题
@@ -54,8 +54,8 @@ SYSTEM_INSTRUCTION = '''
 - 欢迎和感谢社区贡献
 
 ## 重要规则：
-1. 使用get_good_pull_requests而非list_pull_requests获取PR列表，这个工具会自动对PR进行评分和筛选
-2. 将get_good_pull_requests返回的所有结果提炼后在月报中展示，注意：返回的所有pr都要提炼并展示，不能只展示其中两三个
+1. 使用get_good_pull_requests而非list_pull_requests获取PR列表，这个工具会自动对PR进行评分和筛选，返回的都是优秀pr
+2. 将get_good_pull_requests返回的所有结果总结后在月报中展示，注意：返回的所有pr(total_count个）都要总结并展示，不能遗漏任何一个pr
 3. 每项PR功能的技术看点和功能价值应该简洁明了，约50字左右
 4. 三级标题必须使用###前缀
 5. 结语部分总结本月社区发展情况并鼓励更多贡献者参与
@@ -176,7 +176,7 @@ def app_tui():
             except:
                 pass
 
-        follow_up = f"请使用get_good_pull_requests获取本月优质PR，参数：owner='alibaba', repo='higress', month={current_month}。然后使用get_good_first_issues获取新手友好Issue，参数：owner=alibaba, repo=higress, state=open,labels =good first issue ，since = {{当前月份第一天}}}}'。"
+        follow_up = f"请使用get_good_pull_requests获取{current_month}月优质PR，并且一定要把返回的pr全部展示，参数：owner='alibaba', repo='higress', month={current_month}。然后使用get_good_first_issues获取新手友好Issue，参数：owner=alibaba, repo=higress, state=open,labels =good first issue ，since = {{当前月份第一天}}}}'。"
         messages.append({'role': 'user', 'content': follow_up})
         response_plain_text = ''
         for response in bot.run(messages=messages):

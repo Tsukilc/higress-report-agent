@@ -201,7 +201,7 @@ def get_good_pull_requests(
 ) -> Dict:
     """
     增强版列出GitHub仓库中的PR请求，可以筛选出合并的请求和指定月份的请求，并进行评分筛选。
-    此处返回的pr已经处理好，必须全部提取展示
+    此处返回的pr已经处理好，一共有total_count个，必须全部提取展示
 
     Args:
         owner: 仓库所有者名称
@@ -241,16 +241,25 @@ def get_good_pull_requests(
         month = current_month
         print(f"未指定月份，使用当前月份: {month}")
 
+    pr_list = []
     # 尝试获取足够的PR数据
     tool_name = "list_pull_requests"
+    page = 1
 
-    # 先获取第一页
-    print("获取PR第{page}页数据...")
-    result = call_github_mcp_tool(tool_name, params)
+    while len(pr_list) < 10:
+        # 先获取第一页
+        print(f"获取PR第{page} 页数据...")
+        params["page"] = page
+        result = call_github_mcp_tool(tool_name, params)
+        page_pr_list = filter_prs_by_month(result, month)
+        pr_list.extend(page_pr_list)
+        page+=1
 
-
-    # 提取PR列表
-    pr_list = filter_prs_by_month(result, month)
+    print(f"获取PR第{page} 页数据...")
+    params["page"] = page
+    result = call_github_mcp_tool(tool_name,params)
+    page_pr_list = filter_prs_by_month(result, month)
+    pr_list.extend(page_pr_list)
 
     # 初始化大模型评分队列
     scored_prs = []
@@ -261,6 +270,12 @@ def get_good_pull_requests(
     # 创建一个专门用于PR评分的助手
     scoring_system = """
     你是一个专业的PR评分助手，严格根据以下标准，逐步骤对PR进行评分（总分129分）：
+
+           
+    0. 附加提示(优先参考，作为判断pr性质和评分的标准)：
+    文档类pr:标题通常带有md，文档，docs，这样的pr归类于文档类pr
+    功能性pr：标题开头带有 feat,optimize，support,增强，可以归类功能性pr
+    修复性pr: 标题开头带有fix，修复，bug
 
     1. 技术复杂度 (50分)：
        - 高 (40-50分)：涉及核心架构变更、重要算法实现、跨组件重构、新功能实现
@@ -275,7 +290,7 @@ def get_good_pull_requests(
     3. 代码量与复杂度 (30分)：
        - 代码行数变化很小的PR (<10行) 不能作为亮点功能，直接排除
        - 文档类PR直接排除，不计分
-       - 代码行数10-100行的PR，最高只能得到20分
+       - 代码行数10-100行的PR，最高只能得到25分
        - 代码行数100行以上且复杂度高的PR，获得25-30分
 
     4. Bug重要性 (9分)：
@@ -308,6 +323,7 @@ def get_good_pull_requests(
             continue
             
         pr_number = pr.get("number")
+        pr_title = pr.get("title")
         if not pr_number:
             continue
 
@@ -334,7 +350,7 @@ def get_good_pull_requests(
             for file_info in files_result:
                 total_changes += file_info.get("additions", 0) + file_info.get("deletions", 0)
                 
-            print(f"PR #{pr_number}总变更行数: {total_changes}")
+            print(f"PR #{pr_number} +{pr_title}总变更行数: {total_changes}")
             
             # 如果总变更行数小于10，则直接排除
             if total_changes < 10:
@@ -434,7 +450,7 @@ def get_good_pull_requests(
     # 取评分最高的前10个
     top_prs = scored_prs[:10]
     
-    print(f"评分完成，共有{len(scored_prs)}个PR，选出前{len(top_prs)}个")
+    print(f"评分完成，共有{len(scored_prs)}个优秀PR，选出前{len(top_prs)}个")
     
     # 构建并返回结果
     return {
