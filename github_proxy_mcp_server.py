@@ -185,6 +185,21 @@ def filter_prs_by_month(prs_data, month):
 #
 #     return cleaned_data
 
+@mcp.tool()
+def get_current_year_month(
+) -> Dict:
+    """
+    获取当前的年份和月份
+
+    Returns:
+        包含当前年份和月份的字典
+    """
+    year = datetime.datetime.now().year
+    month = datetime.datetime.now().month
+
+    return {"year": year, "month": month}
+
+
 
 @mcp.tool()
 def get_good_pull_requests(
@@ -276,16 +291,17 @@ def get_good_pull_requests(
     文档类pr:标题通常带有md，文档，docs，这样的pr归类于文档类pr
     功能性pr：标题开头带有 feat,optimize，support,增强，可以归类功能性pr
     修复性pr: 标题开头带有fix，修复，bug
+    测试类pr: title带有text,e2e
 
     1. 技术复杂度 (50分)：
        - 高 (40-50分)：涉及核心架构变更、重要算法实现、跨组件重构、新功能实现
        - 中 (20-39分)：功能增强、复杂的Bug修复
-       - 低 (1-19分)：简单Bug修复、配置修改，文档类pr，bot发布的pr
+       - 低 (1-19分)：简单Bug修复、配置修改，文档类pr，bot发布的pr，测试类pr
 
     2. 用户影响范围 (40分)：
        - 高 (30-40分)：影响所有用户、核心功能改进、新增重要特性
        - 中 (15-29分)：影响部分用户、功能增强、可用性改进
-       - 低 (1-14分)：影响少数用户、次要功能修复、内部改进
+       - 低 (1-14分)：影响少数用户、次要功能修复、内部改进,测试类pr
 
     3. 代码量与复杂度 (30分)：
        - 代码行数变化很小的PR (<10行) 不能作为亮点功能，直接排除
