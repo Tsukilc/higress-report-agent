@@ -4,7 +4,6 @@ GitHub MCP服务器 - 使用FastMCP框架
 这个服务器可以接受LLM调用，并转发请求到GitHub的MCP服务器。
 主要功能是提供GitHub PR列表查询能力。
 """
-import asyncio
 import logging
 import os
 import subprocess
@@ -12,14 +11,10 @@ import json
 import datetime
 import re
 import sys
-from random import random
-from xmlrpc.client import Transport
-
 from dateutil import parser as date_parser
 from fastmcp import FastMCP
 from typing import Optional,Dict, Any
 from dotenv import load_dotenv
-from fastmcp import Client
 
 # 创建FastMCP服务器实例
 mcp = FastMCP("GitHub PR查询服务")
@@ -206,6 +201,7 @@ def get_good_pull_requests(
 ) -> Dict:
     """
     增强版列出GitHub仓库中的PR请求，可以筛选出合并的请求和指定月份的请求，并进行评分筛选。
+    此处返回的pr已经处理好，必须全部提取展示
 
     Args:
         owner: 仓库所有者名称
@@ -249,8 +245,10 @@ def get_good_pull_requests(
     tool_name = "list_pull_requests"
 
     # 先获取第一页
-    print(f"获取PR第{page}页数据...")
+    print("获取PR第{page}页数据...")
     result = call_github_mcp_tool(tool_name, params)
+
+
     # 提取PR列表
     pr_list = filter_prs_by_month(result, month)
 
@@ -262,25 +260,31 @@ def get_good_pull_requests(
 
     # 创建一个专门用于PR评分的助手
     scoring_system = """
-        你是一个专业的PR评分助手，根据以下标准对PR进行评分（总分129分）：
+    你是一个专业的PR评分助手，严格根据以下标准，逐步骤对PR进行评分（总分129分）：
 
-        1. 技术复杂度 (49分)：
-           - 高 (45-49分)：涉及核心架构变更、重要算法实现、跨组件重构，新功能实现
-           - 低 (1-4分)：简单Bug修复、文档更新、配置修改
+    1. 技术复杂度 (50分)：
+       - 高 (40-50分)：涉及核心架构变更、重要算法实现、跨组件重构、新功能实现
+       - 中 (20-39分)：功能增强、复杂的Bug修复
+       - 低 (1-19分)：简单Bug修复、配置修改，文档类pr，bot发布的pr
 
-        2. 用户影响范围 (20分)：
-           - 高 (15-20分)：影响所有用户、核心功能改进、新增重要特性
-           - 中 (5-14分)：影响部分用户、功能增强、可用性改进
-           - 低 (1-4分)：影响少数用户、次要功能修复、内部改进
+    2. 用户影响范围 (40分)：
+       - 高 (30-40分)：影响所有用户、核心功能改进、新增重要特性
+       - 中 (15-29分)：影响部分用户、功能增强、可用性改进
+       - 低 (1-14分)：影响少数用户、次要功能修复、内部改进
 
-        3. 代码量与复杂度 (60分)：
-           - 代码行数变化很小的PR (<10行) 不能作为亮点功能，直接排除
-           - 代码行数10-100行的PR，最高只能得到40分
-           - 代码行数100-200行的PR，根据复杂度评分，获得50分
-           - 代码行数200行以上且复杂度高的PR，获得60分
+    3. 代码量与复杂度 (30分)：
+       - 代码行数变化很小的PR (<10行) 不能作为亮点功能，直接排除
+       - 文档类PR直接排除，不计分
+       - 代码行数10-100行的PR，最高只能得到20分
+       - 代码行数100行以上且复杂度高的PR，获得25-30分
 
-        请仅返回一个整数分数作为评分结果，无需解释。
-        """
+    4. Bug重要性 (9分)：
+       - 高 (7-9分)：修复严重影响用户体验或系统稳定性的Bug
+       - 中 (4-6分)：修复中等影响的Bug
+       - 低 (1-3分)：修复轻微问题或边缘情况
+
+    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无需解释。
+    """
 
     # 初始化评分助手
     llm_cfg = {

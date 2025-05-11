@@ -5,6 +5,8 @@
 .idea
 .vscode
 
+nohup.txt
+
 # Environment
 .env
 
