@@ -1,18 +1,7 @@
-"""An agent implemented by assistant with qwen3"""
-import os  # noqa
-import datetime  # 新增
-import re
-
+import os
 from qwen_agent.agents import Assistant
-from qwen_agent.gui import WebUI
 from qwen_agent.utils.output_beautify import typewriter_print
 from dotenv import load_dotenv
-
-
-def get_current_time():
-    """获取当前时间（ISO格式）"""
-    return {"current_time": datetime.datetime.now().isoformat()}
-
 
 # 系统指令，用于指导Agent如何处理PR和生成月报
 SYSTEM_INSTRUCTION = '''
@@ -22,8 +11,9 @@ SYSTEM_INSTRUCTION = '''
 
 1. 获取优质PR列表：
    - 使用get_good_pull_requests工具来获取本月评分最高的PR列表
-   - 必须传入参数：owner="alibaba", repo="higress", month=当前月份 , perPage=100
+   - 必须传入参数：owner="alibaba", repo="higress", month=当前月份 ,year=当前年份 perPage=100
    - 此工具会自动对PR进行评分并返回10个最高质量的PR，必须全部总结展示
+   - 用户如果指定了优质pr链接，一定要加入亮点模块总结展示
 
 2. 获取新手友好Issue：
    - 使用get_good_first_issues工具获取 labels 为"good first issue"的开放问题
@@ -55,7 +45,7 @@ SYSTEM_INSTRUCTION = '''
 - 欢迎和感谢社区贡献
 
 ## 重要规则：
-1. 使用get_good_pull_requests而非list_pull_requests获取PR列表，这个工具会自动对PR进行评分和筛选，返回的都是优秀pr，要全部总结输出
+1. 本月亮点功能中，使用get_good_pull_requests而非list_pull_requests获取PR列表，这个工具会自动对PR进行评分和筛选，返回的都是优秀pr，要全部总结输出
 2. 将get_good_pull_requests返回的所有结果总结后在月报中展示，注意：返回的所有pr(total_count个）都要总结并展示，不能遗漏任何一个pr
 3. 每项PR功能的技术看点和功能价值应该简洁明了，并且强调出功能的技术看点和价值，25-50字
 4. 三级标题必须使用###前缀
@@ -161,7 +151,7 @@ def app_tui():
     response_plain_text = ''
     for response in bot.run(messages=messages):
         response_plain_text = typewriter_print(response, response_plain_text)
-        follow_up = f"请使用get_good_pull_requests获取{{{{用户输入或者当月}}}}月优质PR，并且一定要把返回的pr全部展示，参数：owner='alibaba', repo='higress', month={{{{用户输入或者当月}}}}。然后使用get_good_first_issues获取新手友好Issue，参数：owner=alibaba, repo=higress, state=open,labels =good first issue ，since = {{当前月份第一天}}}}'。"
+        follow_up = "请使用get_good_pull_requests获取{{{{用户输入或者当月}}}}月优质PR，并且一定要把返回的pr全部展示，参数：owner='alibaba', repo='higress', month={{{{用户输入或者当月}}}}，year={{{{用户输入年份或本年}}}}。然后使用get_good_first_issues获取新手友好Issue，参数：owner=alibaba, repo=higress, state=open,labels =good first issue ，since = {{当前月份第一天}}}}'。"
         messages.append({'role': 'user', 'content': follow_up})
         response_plain_text = ''
         for response in bot.run(messages=messages):
@@ -177,23 +167,6 @@ def app_tui():
         for response in bot.run(messages=messages):
             response_plain_text = typewriter_print(response, response_plain_text)
         messages.extend(response)
-
-
-def app_gui():
-    # Define the agent
-    bot = init_agent_service()
-
-    chatbot_config = {
-        'prompt.suggestions': [
-            '生成higress社区2024年6月份的月报',
-            '本月higress社区有哪些重要进展？',
-            '查找适合新手的issue'
-        ]
-    }
-    WebUI(
-        bot,
-        chatbot_config=chatbot_config,
-    ).run()
 
 
 if __name__ == '__main__':

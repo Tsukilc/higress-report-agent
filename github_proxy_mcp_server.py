@@ -89,101 +89,73 @@ def remove_unwanted_urls(data):
         return data
 
 
-def extract_month_from_date(date_str):
+def extract_year_month_from_date(date_str):
     """
-    从日期字符串中安全地提取月份
+    从日期字符串中安全地提取年份和月份
     支持多种日期格式
 
     Args:
         date_str: 日期字符串
 
     Returns:
-        提取的月份(1-12)或None(如果解析失败)
+        (year, month)元组，解析失败返回(None, None)
     """
-
     if not date_str:
-        return None
+        return None, None
 
     try:
-        # 方法1: 使用标准ISO格式解析
+        # 方法1: ISO格式
         try:
-            # 处理ISO格式 (2025-05-10T01:54:32Z)
             if 'T' in date_str and (date_str.endswith('Z') or '+' in date_str):
                 dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                return dt.month
+                return dt.year, dt.month
         except ValueError:
             pass
 
-        # 方法2: 使用正则表达式匹配年-月-日格式
+        # 方法2: 正则匹配
         date_match = re.search(r'(\d{4})-(\d{1,2})-(\d{1,2})', date_str)
         if date_match:
+            year = int(date_match.group(1))
             month = int(date_match.group(2))
             if 1 <= month <= 12:
-                return month
+                return year, month
 
-        # 方法3: 使用dateutil解析器(最灵活但最慢的方法)
+        # 方法3: dateutil
         dt = date_parser.parse(date_str)
-        return dt.month
+        return dt.year, dt.month
 
     except Exception:
-        # 捕获所有异常，确保程序不会崩溃
-        return None
+        return None, None
 
 
-def filter_prs_by_month(prs_data, month):
+def filter_prs_by_year_month(prs_data, month, year):
     """
-    根据月份过滤PR列表
+    根据年份和月份过滤PR列表
 
     Args:
         prs_data: PR数据列表
         month: 目标月份(1-12)
+        year: 目标年份
 
     Returns:
         过滤后的PR列表
     """
-    if not month or not isinstance(prs_data, list):
+    if not month or not year or not isinstance(prs_data, list):
         return prs_data
 
     filtered_prs = []
 
     for pr in prs_data:
         merged_at = pr.get("merged_at")
-
-        # 如果没有merged_at字段或为null，则跳过
         if not merged_at:
             continue
 
-        # 提取月份
-        pr_month = extract_month_from_date(merged_at)
-
-        # 检查月份是否匹配
-        if pr_month is not None and pr_month == month:
+        pr_year, pr_month = extract_year_month_from_date(merged_at)
+        if pr_year is not None and pr_month is not None and pr_year == year and pr_month == month:
             filtered_prs.append(pr)
 
-    return filtered_prs
+    return filtered_prs,pr_year,pr_month
 
-
-# def process_pull_requests(prs_data, month=None):
-#     """
-#     处理PR数据：移除不需要的URL字段并根据月份过滤
-#
-#     Args:
-#         prs_data: 原始PR数据
-#         month: 目标月份(1-12)，如果为None则不过滤
-#
-#     Returns:
-#         处理后的PR数据
-#     """
-#     # 先移除不需要的URL字段
-#     cleaned_data = remove_unwanted_urls(prs_data)
-#
-#
-#     # 根据月份过滤PR
-#     if month is not None:
-#         filtered_data = filter_prs_by_month(cleaned_data, month)
-#         return filtered_data
-#
-#     return cleaned_data
 
 @mcp.tool()
 def get_current_year_month(
@@ -211,6 +183,7 @@ def get_good_pull_requests(
         sort: Optional[str] = "created",  # 可选，排序方式：created/updated/popularity/long-running
         direction: Optional[str] = "desc",  # 可选，排序方向：asc/desc
         month: Optional[int] = None,  # 可选，按合并PR的月份过滤(1-12)
+        year: Optional[int] = None,  # 可选，按合并PR的年份过滤
         page: Optional[int] = 1,  # 可选，页码
         perPage: Optional[int] = 50  # 可选，每页结果数，默认增加到50以获取更多数据
 ) -> Dict:
@@ -261,20 +234,17 @@ def get_good_pull_requests(
     tool_name = "list_pull_requests"
     page = 1
 
-    while len(pr_list) < 10:
+    while(1):
         # 先获取第一页
         print(f"获取PR第{page} 页数据...")
         params["page"] = page
         result = call_github_mcp_tool(tool_name, params)
-        page_pr_list = filter_prs_by_month(result, month)
+        page_pr_list,pr_year ,pr_month  = filter_prs_by_year_month(result, month, year)
         pr_list.extend(page_pr_list)
         page+=1
-
-    print(f"获取PR第{page} 页数据...")
-    params["page"] = page
-    result = call_github_mcp_tool(tool_name,params)
-    page_pr_list = filter_prs_by_month(result, month)
-    pr_list.extend(page_pr_list)
+        # 因为是倒叙，所以当最后一条小于当前月份，就不用再排了
+        if pr_year < year or pr_month < month and pr_year == year:
+            break
 
     # 初始化大模型评分队列
     scored_prs = []
@@ -288,10 +258,10 @@ def get_good_pull_requests(
 
            
     0. 附加提示(优先参考，作为判断pr性质和评分的标准)：
-    文档类pr:标题通常带有md，文档，docs，这样的pr归类于文档类pr
+    文档类pr:标题通常带有md，文档，docs，readme，description，文档等，这样的pr归类于文档类pr，不用进行下面的过程，评分30分以下
     功能性pr：标题开头带有 feat,optimize，support,增强，可以归类功能性pr
     修复性pr: 标题开头带有fix，修复，bug
-    测试类pr: title带有text,e2e
+    测试类pr: title带有text,e2e, 评分40分以下
 
     1. 技术复杂度 (50分)：
        - 高 (40-50分)：涉及核心架构变更、重要算法实现、跨组件重构、新功能实现
@@ -314,7 +284,7 @@ def get_good_pull_requests(
        - 中 (4-6分)：修复中等影响的Bug
        - 低 (1-3分)：修复轻微问题或边缘情况
 
-    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无需解释。
+    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无需解释，严格注意测试和文档pr得分不超过40，严格参考评分标准。
     """
 
     # 初始化评分助手
