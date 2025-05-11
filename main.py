@@ -17,36 +17,21 @@ def get_current_time():
 SYSTEM_INSTRUCTION = '''
 你是一个优秀的月报生成专家，擅长通过分析GitHub仓库中的PR和Issue，为Higress社区生成高质量的月报。
 
-## PR重要性评估标准（总分129分）：
+## 月报生成工作流程：
 
-1. 技术复杂度 (49分)：
-   - 高 (45-49分)：涉及核心架构变更、重要算法实现、跨组件重构，新功能实现
-   - 低 (1-4分)：简单Bug修复、文档更新、配置修改
+1. 获取优质PR列表：
+   - 使用get_good_pull_requests工具来获取本月评分最高的PR列表
+   - 必须传入参数：owner="alibaba", repo="higress", month=当前月份 , perPage=100
+   - 此工具会自动对PR进行评分并返回前10个最高质量的PR
 
-2. 用户影响范围 (20分)：
-   - 高 (15-20分)：影响所有用户、核心功能改进、新增重要特性
-   - 中 (5-14分)：影响部分用户、功能增强、可用性改进
-   - 低 (1-4分)：影响少数用户、次要功能修复、内部改进
+2. 获取新手友好Issue：
+   - 使用get_good_first_issues工具获取 labels 为"good first issue"的开放问题
+   - 必须传入参数：owner="alibaba", repo="higress", state="open",labels = "good first issue" since = {当前月份第一天}
 
-3. 代码量与复杂度 (60分)：
-   - 代码行数变化很小的PR (<10行) 不能作为亮点功能，直接排除
-   - 代码行数10-100行的PR，最高只能得到40分
-   - 代码行数100-200行的PR，根据复杂度评分，获得50分
-   - 代码行数200行以上且复杂度高的PR，获得60分
-
-70分及以上的PR可以考虑作为亮点功能。
-
-## PR分析流程 - 核心步骤：
-1. 使用list_pull_requests（月报一定一定要输入当前月份）获取已合并的PR列表：
-   - 使用参数：perPage=100, state=closed, sort=created, direction=desc，month = {用户输入月份}
-   
-2. 务必对每个PR(list_pull_requests返回的，一个_links代表存在一个pr，一个不能少)单独处理：
-   - 调用get_pull_request_files获取文件变更信息
-   - 计算总变更行数(additions+deletions)
-   - 如果总变更行数<10，立即排除该PR
-   - 根据PR信息和变更行数评分
-
-3. 根据评分排序，选择9-12个分数最高的PR作为亮点功能
+3. 生成高质量月报：
+   - 分析获取到的PR和Issue数据
+   - 遵循下面的月报格式生成内容
+   - 确保内容的技术准确性和可读性
 
 ## 月报格式：
 # higress社区月报
@@ -67,11 +52,11 @@ SYSTEM_INSTRUCTION = '''
 - 欢迎和感谢社区贡献
 
 ## 重要规则：
-1. good first issue从open状态issue中提取，参数：perPage=5, state=open, labels=good first issue
-2. 不要展示草稿状态或未合并的PR
-3. 评分严格按照上述标准执行，不能凭空想象或伪造数据
+1. 使用get_good_pull_requests而非list_pull_requests获取PR列表，这个工具会自动对PR进行评分和筛选
+2. 将get_good_pull_requests返回的结果提炼后在月报中展示
+3. 每项PR功能的技术看点和功能价值应该简洁明了，约50字左右
 4. 三级标题必须使用###前缀
-5. 技术看点，功能价值，结语，都要求50字左右
+5. 结语部分总结本月社区发展情况并鼓励更多贡献者参与
 
 higress社区github地址: https://github.com/alibaba/higress
 '''
@@ -127,6 +112,13 @@ def init_agent_service():
                     "env": {
                         "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
                     }
+                },
+                'github-mcp-server-proxy':{
+                    "command": "uv",
+                    "args": ['run', './github_proxy_mcp_server.py',"stdio", "--toolsets", "issues","--toolsets","pull_requests","--toolsets","repos"],
+                    "env": {
+                        "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+                    }
                 }
             }
         },
@@ -158,16 +150,31 @@ def app_tui():
 
     # Chat
     messages = []
-    query = input('user question: ')
+    query = input('用户问题: ')
     messages.append({'role': 'user', 'content': query})
     response = []
     response_plain_text = ''
     for response in bot.run(messages=messages):
         response_plain_text = typewriter_print(response, response_plain_text)
 
-    # 添加辅助提示，确保对每个PR单独处理
-    if "生成" in query and ("月报" in query or "周报" in query):
-        follow_up = "对每个PR都请单独调用get_pull_request_files API评估代码变更。注意总变更行数少于10行的PR直接排除。"
+    # 添加辅助提示，确保正确使用工具
+    if ("生成" in query and ("月报" in query or "周报" in query)) or "报告" in query:
+        # 获取当前月份
+        current_month = datetime.datetime.now().month
+        
+        # 检查用户是否指定了月份，如果没有则使用当前月份
+        if "月份" in query or "月" in query:
+            try:
+                import re
+                month_match = re.search(r'(\d+)月(份)?', query)
+                if month_match:
+                    specified_month = int(month_match.group(1))
+                    if 1 <= specified_month <= 12:
+                        current_month = specified_month
+            except:
+                pass
+                
+        follow_up = f"请使用get_good_pull_requests获取本月优质PR，参数：owner='alibaba', repo='higress', month={current_month}。然后使用get_good_first_issues获取新手友好Issue，参数：owner='alibaba', repo='higress', state='open'。"
         print("\n系统提示: " + follow_up)
         messages.append({'role': 'user', 'content': follow_up})
         response_plain_text = ''
@@ -177,7 +184,7 @@ def app_tui():
 
     # Chat
     while True:
-        query = input('user question: ')
+        query = input('用户问题: ')
         messages.append({'role': 'user', 'content': query})
         response = []
         response_plain_text = ''
@@ -189,11 +196,12 @@ def app_tui():
 def app_gui():
     # Define the agent
     bot = init_agent_service()
+
     chatbot_config = {
         'prompt.suggestions': [
-            '生成higress社区2025年5月份的月报',
-            '分析这个PR的技术价值：https://github.com/alibaba/higress/pull/1234',
-            '本月有哪些适合新手的issues？'
+            '生成higress社区2024年6月份的月报',
+            '本月higress社区有哪些重要进展？',
+            '查找适合新手的issue'
         ]
     }
     WebUI(
