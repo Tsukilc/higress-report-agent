@@ -51,7 +51,7 @@ SYSTEM_INSTRUCTION = '''
 4. 每项PR功能的技术看点和功能价值应该简洁明了，并且强调出功能的技术看点和价值，25-50字
 5. 三级标题必须使用###前缀
 6. 结语部分总结本月社区发展情况并鼓励更多贡献者参与
-7. 用户输入本月，当月要调用get_current_year_month获取当前年月。用户输入数字年月则一定要遵循当作参数传递
+7. 注意用户输入的月份，用户没输入明确年月时，要调用get_current_year_month获取当前年月。
 8. get_good_pull_requests每次对话只需要调用一次
 9. 生成完成结语后，不管结果如何，禁止再调用任何工具或生成额外内容，直接结束本轮对话
 10. 在开始总结PR前，先记录返回的PR总数，然后确保你总结了相同数量的PR
@@ -121,6 +121,10 @@ def init_agent_service():
             }
         },
     ]
+
+    github_token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+    if not github_token:
+        raise ValueError("Missing required environment variable GITHUB_PERSONAL_ACCESS_TOKEN")
 
     bot = Assistant(llm=llm_cfg,
                     system_message=SYSTEM_INSTRUCTION,

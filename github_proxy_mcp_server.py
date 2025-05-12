@@ -112,7 +112,7 @@ def extract_year_month_from_date(date_str):
         except ValueError:
             pass
 
-        # 方法2: 正则匹配
+        # 正则匹配
         date_match = re.search(r'(\d{4})-(\d{1,2})-(\d{1,2})', date_str)
         if date_match:
             year = int(date_match.group(1))
@@ -154,14 +154,14 @@ def filter_prs_by_year_month(prs_data, month, year):
         if pr_year is not None and pr_month is not None and pr_year == year and pr_month == month:
             filtered_prs.append(pr)
 
-    return filtered_prs,pr_year,pr_month
+    return filtered_prs
 
 
 @mcp.tool()
 def get_current_year_month(
 ) -> Dict:
     """
-    获取当前的年份和月份
+    获取当前的年份和月份，仅当用户未输入当年年月时调用
 
     Returns:
         包含当前年份和月份的字典
@@ -233,21 +233,38 @@ def get_good_pull_requests(
     # 尝试获取足够的PR数据
     tool_name = "list_pull_requests"
     page = 1
+    maxPage = 20
 
-    while(1):
+    while(page<maxPage):
         # 先获取第一页
         print(f"获取PR第{page} 页数据...")
         params["page"] = page
         result = call_github_mcp_tool(tool_name, params)
-        page_pr_list,pr_year ,pr_month  = filter_prs_by_year_month(result, month, year)
+        page_pr_list = filter_prs_by_year_month(result, month, year)
         pr_list.extend(page_pr_list)
         page+=1
-        # 因为是倒叙，所以当最后一条小于当前月份，就不用再排了
-        if pr_year < year or pr_month < month and pr_year == year:
+        
+        # 检查是否需要继续获取更多页数据
+        # 如果当前页为空则停止获取
+        if not result:
             break
+            
+        # 检查最后一个PR的日期
+        last_pr = result[-1]
+        if last_pr and "merged_at" in last_pr:
+            last_pr_year, last_pr_month = extract_year_month_from_date(last_pr["merged_at"])
+            if last_pr_year is not None and last_pr_month is not None:
+                if last_pr_year < year or (last_pr_year == year and last_pr_month < month):
+                    break
 
-    # 初始化大模型评分队列
     scored_prs = []
+
+    # 遍历page_pr_list打印年月
+    for pr in pr_list:
+        merged_at = pr.get("merged_at")
+        if merged_at:
+            pr_year, pr_month = extract_year_month_from_date(merged_at)
+            print(f"PR #{pr.get('number')} 合并日期: {pr_year}-{pr_month}")
 
     # 导入必要的模块
     from qwen_agent.agents import Assistant
@@ -284,7 +301,7 @@ def get_good_pull_requests(
        - 中 (4-6分)：修复中等影响的Bug
        - 低 (1-3分)：修复轻微问题或边缘情况
 
-    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无需解释，严格注意测试和文档pr得分不超过40，严格参考评分标准。
+    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无��解释，严格注意测试和文档pr得分不超过40，严格参考评分标准。
     """
 
     # 初始化评分助手
@@ -328,7 +345,7 @@ def get_good_pull_requests(
             
             # 检查文件变更结果
             if not isinstance(files_result, list):
-                print(f"获取PR #{pr_number}文件变更失败: {files_result}")
+                print(f"获取PR #{pr_number}文件变更失���: {files_result}")
                 continue
                 
             # 计算总变更行数
@@ -541,3 +558,4 @@ def call_github_mcp_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, An
 if __name__ == "__main__":
     load_dotenv()
     mcp.run()
+
