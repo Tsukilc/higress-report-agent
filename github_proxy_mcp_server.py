@@ -258,10 +258,10 @@ def get_good_pull_requests(
 
            
     0. 附加提示(优先参考，作为判断pr性质和评分的标准)：
-    文档类pr:标题通常带有md，文档，docs，readme，description，文档等，这样的pr归类于文档类pr，不用进行下面的过程，评分30分以下
+    文档类pr:标题通常带有md，文档，docs，readme，description，文档等，这样的pr归类于文档类pr，不用进行下面的过程，总评分30分以下
     功能性pr：标题开头带有 feat,optimize，support,增强，可以归类功能性pr
     修复性pr: 标题开头带有fix，修复，bug
-    测试类pr: title带有text,e2e, 评分40分以下
+    测试类pr: title带有text,e2e, 总评分只能40分以下，不用进行下面过程
 
     1. 技术复杂度 (50分)：
        - 高 (40-50分)：涉及核心架构变更、重要算法实现、跨组件重构、新功能实现
@@ -457,7 +457,7 @@ def get_good_pull_requests(
 
 def call_github_mcp_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    调用GitHub MCP工具（非异步方式）
+    调用GitHub MCP工具
 
     Args:
         tool_name: 工具名称
