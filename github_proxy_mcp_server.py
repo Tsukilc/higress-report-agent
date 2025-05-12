@@ -342,7 +342,7 @@ def get_good_pull_requests(
             if total_changes < 10:
                 print(f"PR #{pr_number}变更行数({total_changes})小于10，跳过")
                 continue
-            
+
             # 准备PR信息以发送给大模型评分
             pr_info = {
                 "title": pr.get("title", ""),
@@ -350,10 +350,11 @@ def get_good_pull_requests(
                 "total_changes": total_changes,
                 "file_changes": [
                     {
+                        "patch": file.get("patch", ""),
                         "filename": file.get("filename", ""),
                         "additions": file.get("additions", 0),
                         "deletions": file.get("deletions", 0)
-                    } for file in files_result[:10]  # 限制文件数量，避免超出上下文长度
+                    } for file in files_result[:15]  # 限制文件数量，避免超出上下文长度
                 ]
             }
 
@@ -422,7 +423,16 @@ def get_good_pull_requests(
                 "created_at": pr.get("created_at", ""),
                 "merged_at": pr.get("merged_at", ""),
                 "changes": total_changes,
-                "score": score
+                "score": score,
+                "code_changes": [
+                    {
+                        "filename": file.get("filename", ""),
+                        "patch": file.get("patch", "")[:100] if file.get("patch") else "",  # 限制patch长度
+                        "additions": file.get("additions", 0),
+                        "deletions": file.get("deletions", 0)
+                    }
+                    for file in files_result[:10]
+                ]
             }
             scored_prs.append(scored_pr)
             
