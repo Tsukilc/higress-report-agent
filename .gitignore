@@ -1,0 +1,15 @@
+# Virtual environment
+.venv
+
+# IDE
+.idea
+.vscode
+
+nohup.txt
+
+# Environment
+.env
+
+# Python
+*.egg-info
+__pycache__
