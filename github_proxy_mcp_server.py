@@ -11,6 +11,8 @@ import json
 import datetime
 import re
 import sys
+from os import getenv
+
 from dateutil import parser as date_parser
 from fastmcp import FastMCP
 from typing import Optional,Dict, Any
@@ -186,7 +188,7 @@ def get_good_pull_requests(
         year: Optional[int] = None,  # 可选，按合并PR的年份过滤
         page: Optional[int] = 1,  # 可选，页码
         perPage: Optional[int] = 50  # 可选，每页结果数，默认增加到50以获取更多数据
-) -> Dict:
+) -> str | dict[str, list[dict] | int]:
     """
     增强版列出GitHub仓库中的PR请求，可以筛选出合并的请求和指定月份的请求，并进行评分筛选。
     此处返回的pr已经处理好，一共有total_count个，必须全部提取展示
@@ -228,6 +230,12 @@ def get_good_pull_requests(
         current_month = datetime.datetime.now().month
         month = current_month
         print(f"未指定月份，使用当前月份: {month}")
+
+    # 取评分最高的前n个
+    size = int(getenv("GOOD_PR_NUM"))
+    if size is None or size < 0:
+        return "请指定大于0的亮点pr数量"
+
 
     pr_list = []
     # 尝试获取足够的PR数据
@@ -271,9 +279,8 @@ def get_good_pull_requests(
 
     # 创建一个专门用于PR评分的助手
     scoring_system = """
-    你是一个专业的PR评分助手，严格根据以下标准，逐步骤对PR进行评分（总分129分）：
+    你是一个专业的PR评价助手，严格根据以下标准，逐步骤对PR进行评分（总分129分），并且严格按照下文指定json格式返回：
 
-           
     0. 附加提示(优先参考，作为判断pr性质和评分的标准)：
     文档类pr:标题通常带有md，文档，docs，readme，description，文档等，这样的pr归类于文档类pr，不用进行下面的过程，总评分30分以下
     功能性pr：标题开头带有 feat,optimize，support,增强，可以归类功能性pr
@@ -301,7 +308,14 @@ def get_good_pull_requests(
        - 中 (4-6分)：修复中等影响的Bug
        - 低 (1-3分)：修复轻微问题或边缘情况
 
-    请根据以上标准对PR进行评分，并返回一个1-129之间的整数分数，无��解释，严格注意测试和文档pr得分不超过40，严格参考评分标准。
+    请根据以上标准对PR进行评分，并给出一个1-129之间的整数分数，严格注意测试和文档pr得分不超过40，严格参考评分标准。
+    
+    最后，请务必返回以下信息（填充具体值），严格按照json格式：
+    "pr_link": ,
+    "contributor": ,
+    "highlight": "关键技术实现方式和原理(50字)",
+    "function_value": "功能价值概要，对社区的影响(50字)"
+    "score": "你给出的整数评分"
     """
 
     # 初始化评分助手
@@ -312,7 +326,7 @@ def get_good_pull_requests(
     }
 
     scoring_bot = Assistant(llm=llm_cfg, system_message=scoring_system)
-    
+
     # 对每个PR进行评分
     for i, pr in enumerate(pr_list):
         # 跳过草稿PR
@@ -330,7 +344,6 @@ def get_good_pull_requests(
         if not pr_number:
             continue
 
-            
         print(f"正在处理PR #{pr_number}: {pr.get('title', '')} ({i+1}/{len(pr_list)})")
         
         # 获取PR文件变更信息
@@ -345,7 +358,7 @@ def get_good_pull_requests(
             
             # 检查文件变更结果
             if not isinstance(files_result, list):
-                print(f"获取PR #{pr_number}文件变更失���: {files_result}")
+                print(f"获取PR #{pr_number}文件变更失败: {files_result}")
                 continue
                 
             # 计算总变更行数
@@ -371,7 +384,7 @@ def get_good_pull_requests(
                         "filename": file.get("filename", ""),
                         "additions": file.get("additions", 0),
                         "deletions": file.get("deletions", 0)
-                    } for file in files_result[:15]  # 限制文件数量，避免超出上下文长度
+                    } for file in files_result[:45]  # 限制文件数量，避免超出上下文长度
                 ]
             }
 
@@ -390,67 +403,36 @@ def get_good_pull_requests(
 
             # 使用大模型评分
             messages = [{'role': 'user', 'content': score_prompt}]
-            response_text = ""
 
+            collected_responses = []
             for response in scoring_bot.run(messages=messages):
                 if isinstance(response, list) and len(response) > 0:
                     for msg in response:
                         if msg.get('role') == 'assistant' and msg.get('content'):
-                            response_text += msg.get('content', "")
+                            collected_responses.append(msg.get('content', ""))
 
-            # 尝试从响应中提取分数
-            try:
-                # 查找响应文本中的数字
-                import re
-                score_match = re.search(r'\b(\d{1,3})\b', response_text)
-                if score_match:
-                    score = int(score_match.group(1))
-                    # 确保分数在有效范围内
-                    score = max(1, min(score, 129))
-                else:
-                    # 如果无法提取分数，则使用备用评分机制
-                    if total_changes < 50:
-                        score = 20 + (total_changes - 10) // 2  # 20-40分
-                    elif total_changes < 100:
-                        score = 40 + (total_changes - 50) // 5  # 40-50分
-                    elif total_changes < 200:
-                        score = 50 + (total_changes - 100) // 10  # 50-60分
-                    else:
-                        score = 70 + min(total_changes // 100, 30)  # 70-100分
-            except:
-                # 异常情况下的备用评分
-                if total_changes < 50:
-                    score = 20 + (total_changes - 10) // 2  # 20-40分
-                elif total_changes < 100:
-                    score = 40 + (total_changes - 50) // 5  # 40-50分
-                elif total_changes < 200:
-                    score = 50 + (total_changes - 100) // 10  # 50-60分
-                else:
-                    score = 70 + min(total_changes // 100, 30)  # 70-100分
-            
-            print(f"PR #{pr_number}评分完成，得分: {score}")
-            
-            # 添加到评分结果列表
+            # 只取最后一个响应（完整响应）
+            if collected_responses:
+                response_text = collected_responses[-1]
+
+            import re
+            json_response = json.loads(response_text)
+
+            score = json_response.get("score", 0)
+
             scored_pr = {
                 "number": pr_number,
                 "title": pr.get("title", ""),
                 "html_url": pr.get("html_url", ""),
                 "user": remove_unwanted_urls(pr.get("user", {})),
-                "body": pr.get("body", "")[:500] if pr.get("body") else "",  # 限制PR描述长度
-                "created_at": pr.get("created_at", ""),
-                "merged_at": pr.get("merged_at", ""),
-                "changes": total_changes,
-                "score": score,
-                "code_changes": [
-                    {
-                        "filename": file.get("filename", ""),
-                        "patch": file.get("patch", "")[:100] if file.get("patch") else "",  # 限制patch长度
-                        "additions": file.get("additions", 0),
-                        "deletions": file.get("deletions", 0)
-                    }
-                    for file in files_result[:10]
-                ]
+                "highlight": json_response.get("highlight", ""),
+                "function_value": json_response.get("function_value", ""),
+                "score": score
             }
+
+            print(f"PR #{pr_number}评分完成，得分: {score}")
+            print(scored_pr)
+
             scored_prs.append(scored_pr)
             
         except Exception as e:
@@ -459,20 +441,18 @@ def get_good_pull_requests(
     
     # 按评分降序排序
     scored_prs.sort(key=lambda x: x["score"], reverse=True)
-    
-    # 取评分最高的前10个
-    top_prs = scored_prs[:10]
+
+    top_prs = scored_prs[:size]
     
     print(f"评分完成，共有{len(scored_prs)}个优秀PR，选出前{len(top_prs)}个")
-    
-    # 构建并返回结果
+
+
     return {
-        "total_count": len(top_prs),
-        "items": top_prs
+        "total_count": len(scored_prs),
+        "items": scored_prs
     }
 
-
-def call_github_mcp_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+def call_github_mcp_tool(tool_name: str, params: Dict[str, Any]) -> dict[str, str] | None:
     """
     调用GitHub MCP工具
 

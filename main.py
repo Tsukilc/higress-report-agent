@@ -16,13 +16,13 @@ SYSTEM_INSTRUCTION = '''
    - 用户如果指定了优质pr链接，一定要加入亮点模块总结展示
 
 2. 获取新手友好Issue：
-   - 使用github mcp server的list_issues工具获取 labels 为"good first issue"的开放问题
+   - 使用github mcp server的list_issues工具获取 labels 为"["good first issue"]"的开放问题
    - 必须传入参数：owner="alibaba", repo="higress", state="open",labels = "good first issue",perPage=2
 
 3. 生成高质量月报：
    - 遍历列表全部，逐个分析获取PR或Issue数据，总结输出
    - 遵循下面的月报格式生成内容，标题只输出一遍，内容用三级标题慢慢输出，功能名称必须凝练成中文
-   - 确保内容的技术准确性和可读性，月报内容从title和body中，以及阅读code_changes的代码进行总结，技术看点和功能价值都应在30-50字
+   - 技术看点和功能价值都应在30-50字
 
 ## 月报格式：
 # higress社区月报
@@ -53,8 +53,7 @@ SYSTEM_INSTRUCTION = '''
 6. 结语部分总结本月社区发展情况并鼓励更多贡献者参与
 7. 注意用户输入的月份，用户没输入明确年月时，要调用get_current_year_month获取当前年月。
 8. get_good_pull_requests每次对话只需要调用一次
-9. 生成完成结语后，不管结果如何，禁止再调用任何工具或生成额外内容，直接结束本轮对话
-10. 在开始总结PR前，先记录返回的PR总数，然后确保你总结了相同数量的PR
+9. 在开始总结PR前，先记录返回的PR总数，然后确保你总结了相同数量的PR
 
 higress社区github地址: https://github.com/alibaba/higress
 '''
