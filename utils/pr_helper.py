@@ -1,5 +1,5 @@
 """
-GitHub操作辅助工具类 - 封装GitHub相关的API调用
+PR操作辅助工具类 - 封装GitHub PR相关的API调用
 """
 
 import os

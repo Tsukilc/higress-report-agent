@@ -66,7 +66,7 @@ class ReportAgent:
 
         return bot
     
-    def generate_monthly_report(self, month: int = None, year: int = None, owner: str = "alibaba", repo: str = "higress") -> str:
+    def generate_monthly_report(self, month: int = None, year: int = None, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
         """
         生成月报
         
@@ -90,7 +90,8 @@ class ReportAgent:
                 month=month,
                 year=year,
                 owner=owner,
-                repo=repo
+                repo=repo,
+                translate=translate
             )
             
             print("✅ 月报生成完成!")
@@ -100,7 +101,7 @@ class ReportAgent:
             print(f"❌ 月报生成失败: {str(e)}")
             return f"月报生成失败: {str(e)}"
     
-    def generate_changelog(self, pr_num_list: list, owner: str = "alibaba", repo: str = "higress") -> str:
+    def generate_changelog(self, pr_num_list: list, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
         """
         生成changelog
         
@@ -122,7 +123,8 @@ class ReportAgent:
             report = generator.create_report(
                 pr_num_list=pr_num_list,
                 owner=owner,
-                repo=repo
+                repo=repo,
+                translate=translate
             )
             
             print("✅ Changelog生成完成!")
@@ -148,15 +150,19 @@ class ReportAgent:
                     # 生成月报
                     month_input = input("请输入月份 (回车使用当前月): ").strip()
                     year_input = input("请输入年份 (回车使用当前年): ").strip()
+                    translate_input = input("是否生成英文翻译? (y/n, 默认y): ").strip().lower()
                     
                     month = int(month_input) if month_input else None
                     year = int(year_input) if year_input else None
+                    translate = translate_input != 'n'
                     
-                    report = self.generate_monthly_report(month=month, year=year)
+                    report = self.generate_monthly_report(month=month, year=year, translate=translate)
                     print("\n" + "="*50)
-                    print("📋 月报内容:")
+                    print("📋 月报生成完成:")
                     print("="*50)
-                    print(report)
+                    print("✅ 中文报告已保存到: report.md")
+                    if translate:
+                        print("✅ 英文报告已保存到: report.EN.md")
                     print("="*50)
                     
                 elif choice == "2":
@@ -173,11 +179,16 @@ class ReportAgent:
                         print("❌ PR编号格式不正确，请输入数字")
                         continue
                     
-                    report = self.generate_changelog(pr_num_list=pr_num_list)
+                    translate_input = input("是否生成英文翻译? (y/n, 默认y): ").strip().lower()
+                    translate = translate_input != 'n'
+                    
+                    report = self.generate_changelog(pr_num_list=pr_num_list, translate=translate)
                     print("\n" + "="*50)
-                    print("📋 Changelog内容:")
+                    print("📋 Changelog生成完成:")
                     print("="*50)
-                    print(report)
+                    print("✅ 中文报告已保存到: report.md")
+                    if translate:
+                        print("✅ 英文报告已保存到: report.EN.md")
                     print("="*50)
                     
                 elif choice == "3":

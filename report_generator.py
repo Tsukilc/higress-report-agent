@@ -67,7 +67,65 @@ class ReportGeneratorInterface(ABC):
         # 3. 生成报告
         report = self.generate_report(analyzed_prs)
         
+        # 4. 保存报告到文件
+        self.save_report_to_file(report, "report.md")
+        
+        # 5. 生成英文翻译
+        if kwargs.get('translate', True):
+            english_report = self.translate_to_english(report)
+            self.save_report_to_file(english_report, "report.EN.md")
+        
         return report
+    
+    def save_report_to_file(self, content: str, filename: str) -> None:
+        """
+        保存报告内容到文件
+        
+        Args:
+            content: 报告内容
+            filename: 文件名
+        """
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"✅ 报告已保存到 {filename}")
+        except Exception as e:
+            print(f"❌ 保存文件 {filename} 失败: {str(e)}")
+    
+    def translate_to_english(self, content: str) -> str:
+        """
+        将报告内容翻译成英文
+        
+        Args:
+            content: 中文报告内容
+            
+        Returns:
+            英文翻译内容
+        """
+        print("🌐 开始翻译报告为英文...")
+        
+        translation_prompt = f"""
+        请将以下中文报告翻译成英文，保持markdown格式不变，并确保技术术语翻译准确：
+
+        {content}
+
+        翻译要求：
+        1. 保持所有markdown格式标记（#、##、###、-、[]()等）
+        2. 保持所有链接和URL不变
+        3. 技术术语使用准确的英文表达
+        4. 保持专业的技术文档风格
+        5. 不要添加任何额外的解释或注释
+        """
+        
+        messages = [{'role': 'user', 'content': translation_prompt}]
+        
+        try:
+            response_text = self._get_llm_response(messages)
+            print("✅ 翻译完成")
+            return response_text
+        except Exception as e:
+            print(f"❌ 翻译失败: {str(e)}")
+            return f"# Translation Error\n\nFailed to translate the report: {str(e)}\n\n---\n\n{content}"
 
 
 class BaseReportGenerator(ReportGeneratorInterface):
