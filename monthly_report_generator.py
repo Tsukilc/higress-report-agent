@@ -126,7 +126,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
            - 中（4-6分）：修复中等影响的Bug
            - 低（1-3分）：修复轻微问题或边缘情况
 
-        请分析以下PR：
+        请分析以下PR（需要根据文件改动，主要参考pr_title和pr_body进行具体分析）：
         PR编号: #{pr_number}
         PR标题: {pr_title}
         PR描述: {pr_body}
@@ -136,8 +136,8 @@ class MonthlyReportGenerator(BaseReportGenerator):
 
         请严格按照以下JSON格式返回：
         {{
-            "highlight": "关键技术实现方式和原理(50字以内)",
-            "function_value": "功能价值概要，对社区的影响(50字以内)",
+            "highlight": "关键技术实现方式和原理(50字以上，100字以下)",
+            "function_value": "功能价值概要，对社区的影响(50字以上，100字以下)",
             "score": "你给出的整数评分（1-129）"
         }}
         """

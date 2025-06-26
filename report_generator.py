@@ -36,6 +36,8 @@ class PRInfo:
     function_value: str = ""
     score: int = 0
     pr_type: Optional[PRType] = None
+    is_important: bool = False
+    detailed_analysis: str = ""  # 用于存储重要PR的详细分析
 
 
 class ReportGeneratorInterface(ABC):

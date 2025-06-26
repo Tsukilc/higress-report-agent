@@ -101,14 +101,16 @@ class ReportAgent:
             print(f"❌ 月报生成失败: {str(e)}")
             return f"月报生成失败: {str(e)}"
     
-    def generate_changelog(self, pr_num_list: list, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
+    def generate_changelog(self, pr_num_list: list, important_pr_list: list = None, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
         """
         生成changelog
         
         Args:
             pr_num_list: PR编号列表
+            important_pr_list: 重要PR编号列表
             owner: 仓库所有者
             repo: 仓库名称
+            translate: 是否生成英文翻译
             
         Returns:
             changelog内容字符串
@@ -119,13 +121,20 @@ class ReportAgent:
             # 使用工厂模式创建changelog生成器
             generator = ReportGeneratorFactory.create_generator("changelog")
             
+            # 准备参数
+            kwargs = {
+                'pr_num_list': pr_num_list,
+                'owner': owner,
+                'repo': repo,
+                'translate': translate
+            }
+            
+            # 如果有重要PR列表，添加到参数中
+            if important_pr_list:
+                kwargs['important_pr_list'] = important_pr_list
+            
             # 生成changelog
-            report = generator.create_report(
-                pr_num_list=pr_num_list,
-                owner=owner,
-                repo=repo,
-                translate=translate
-            )
+            report = generator.create_report(**kwargs)
             
             print("✅ Changelog生成完成!")
             return report
@@ -179,10 +188,28 @@ class ReportAgent:
                         print("❌ PR编号格式不正确，请输入数字")
                         continue
                     
+                    # 询问重要PR
+                    important_input = input("请输入重要PR编号列表 (用逗号分隔，留空则无重要PR): ").strip()
+                    important_pr_list = []
+                    if important_input:
+                        try:
+                            important_pr_list = [int(x.strip()) for x in important_input.split(",")]
+                            # 验证重要PR是否都在PR列表中
+                            invalid_prs = [pr for pr in important_pr_list if pr not in pr_num_list]
+                            if invalid_prs:
+                                print(f"⚠️ 重要PR {invalid_prs} 不在PR列表中，将自动添加")
+                        except ValueError:
+                            print("❌ 重要PR编号格式不正确，将忽略重要PR设置")
+                            important_pr_list = []
+                    
                     translate_input = input("是否生成英文翻译? (y/n, 默认y): ").strip().lower()
                     translate = translate_input != 'n'
                     
-                    report = self.generate_changelog(pr_num_list=pr_num_list, translate=translate)
+                    report = self.generate_changelog(
+                        pr_num_list=pr_num_list, 
+                        important_pr_list=important_pr_list,
+                        translate=translate
+                    )
                     print("\n" + "="*50)
                     print("📋 Changelog生成完成:")
                     print("="*50)
