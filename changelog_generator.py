@@ -32,14 +32,14 @@ class ChangelogReportGenerator(BaseReportGenerator):
            - test: 测试相关、CI/CD改进
 
         2. 分析要求：
-           - 技术看点：关键技术实现方式和原理(50字以内)
-           - 功能价值：功能价值概要，对用户的影响(50字以内)
+           - 技术看点：关键技术实现方式和原理(50字以上，100字以内)
+           - 功能价值：功能价值概要，对用户的影响(50字以上，100字以内)
 
         请严格按照以下JSON格式返回：
         {
             "pr_type": "feature|bugfix|doc|refactor|test",
-            "highlight": "关键技术实现方式和原理(50字以内)",
-            "function_value": "功能价值概要，对用户的影响(50字以内)"
+            "highlight": "关键技术实现方式和原理(50字以上，100字以内)",
+            "function_value": "功能价值概要，对用户的影响(50字以上，100字以内)"
         }
         """
         
@@ -142,7 +142,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
         # 然后进行详细分析
         detailed_prompt = self._get_detailed_analysis_prompt()
         try:
-            pr_details = self._get_pr_detailed_info(pr.number)
+            # 为重要PR获取更详细的信息，包括patch
+            pr_details = self._get_important_pr_detailed_info(pr.number)
             if not pr_details:
                 print(f"无法获取PR #{pr.number}的详细信息，跳过详细分析")
                 return pr
@@ -151,9 +152,10 @@ class ChangelogReportGenerator(BaseReportGenerator):
             full_prompt = detailed_prompt.format(
                 pr_number=pr.number,
                 pr_title=pr.title,
-                pr_body=pr_details.get("body", "")[:800],  # 增加长度用于详细分析
+                pr_body=pr_details.get("body", "")[:1000],  # 增加长度用于详细分析
                 total_changes=pr_details.get("total_changes", 0),
-                file_changes=json.dumps(pr_details.get("file_changes", [])[:8], indent=2, ensure_ascii=False)
+                file_changes=json.dumps(pr_details.get("file_changes", [])[:10], indent=2, ensure_ascii=False),
+                patch_summary=pr_details.get("patch_summary", "")
             )
             
             # 使用LLM进行详细分析
@@ -186,6 +188,76 @@ class ChangelogReportGenerator(BaseReportGenerator):
             pr.detailed_analysis = "详细分析暂时不可用，请参考基础信息。"
         
         return pr
+    
+    def _get_important_pr_detailed_info(self, pr_number: int) -> dict:
+        """获取重要PR的详细信息，包括完整的patch内容"""
+        try:
+            # 获取基础信息
+            pr_details = self._get_pr_detailed_info(pr_number)
+            
+            # 为重要PR获取更详细的文件变更信息，包括patch
+            files_result = self.github_helper.get_pull_request_files(
+                owner="alibaba", 
+                repo="higress", 
+                pullNumber=pr_number
+            )
+            
+            if not isinstance(files_result, list):
+                return pr_details
+            
+            # 构建详细的文件变更信息，包含完整patch
+            enhanced_file_changes = []
+            patch_summary_parts = []
+            
+            for file_info in files_result[:8]:  # 限制文件数量避免内容过长
+                filename = file_info.get("filename", "")
+                additions = file_info.get("additions", 0)
+                deletions = file_info.get("deletions", 0)
+                patch_content = file_info.get("patch", "")
+                
+                # 构建增强的文件信息
+                enhanced_file = {
+                    "filename": filename,
+                    "additions": additions,
+                    "deletions": deletions,
+                    "status": file_info.get("status", "modified"),
+                    "patch": patch_content[:2000] if patch_content else ""  # 保留更多patch内容
+                }
+                enhanced_file_changes.append(enhanced_file)
+                
+                # 构建patch摘要
+                if patch_content:
+                    # 提取关键的代码变更信息
+                    patch_lines = patch_content.split('\n')
+                    key_changes = []
+                    
+                    for line in patch_lines[:50]:  # 分析前50行patch
+                        line = line.strip()
+                        if line.startswith('+') and not line.startswith('+++'):
+                            # 新增的代码行
+                            if len(line) > 5 and not line.startswith('+ //') and not line.startswith('+ #'):
+                                key_changes.append(f"新增: {line[1:].strip()[:100]}")
+                        elif line.startswith('-') and not line.startswith('---'):
+                            # 删除的代码行
+                            if len(line) > 5 and not line.startswith('- //') and not line.startswith('- #'):
+                                key_changes.append(f"删除: {line[1:].strip()[:100]}")
+                    
+                    if key_changes:
+                        file_summary = f"文件 {filename} ({additions}+/{deletions}-):\n"
+                        file_summary += "\n".join(key_changes[:5])  # 最多5个关键变更
+                        patch_summary_parts.append(file_summary)
+            
+            # 更新详细信息
+            pr_details["file_changes"] = enhanced_file_changes
+            pr_details["patch_summary"] = "\n\n".join(patch_summary_parts[:5]) if patch_summary_parts else ""
+            
+            print(f"✅ 已获取重要PR #{pr_number}的增强详细信息（包含patch内容）")
+            return pr_details
+            
+        except Exception as e:
+            print(f"获取重要PR #{pr_number}详细信息失败: {str(e)}")
+            # 降级到基础信息
+            return self._get_pr_detailed_info(pr_number)
 
     def _get_analysis_prompt(self) -> str:
         """获取changelog专用的分析prompt"""
@@ -343,14 +415,11 @@ class ChangelogReportGenerator(BaseReportGenerator):
                 
                 for pr in prs:
                     contributor_login = pr.user.get('login', '未知')
-                    contributor_url = pr.user.get('html_url', '#')
                     
-                    section += f"- **{pr.title}** ([#{pr.number}]({pr.html_url})) "
-                    section += f"by [{contributor_login}]({contributor_url})\n"
-                    section += f"  - {pr.highlight}\n"
-                    if pr.function_value:
-                        section += f"  - 价值: {pr.function_value}\n"
-                    section += "\n"
+                    section += f"- **Related PR**: [#{pr.number}]({pr.html_url})\n"
+                    section += f"  **Contributor**: {contributor_login}\n"
+                    section += f"  **Change Log**: {pr.highlight}\n"
+                    section += f"  **Feature Value**: {pr.function_value}\n\n"
         
         return section
     
@@ -410,6 +479,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
         return """
         你是一个专业的技术文档撰写专家，请对以下重要PR进行深度分析，为release note撰写详细的功能介绍。
 
+        你将获得完整的代码变更信息（包括patch内容），请基于这些具体的代码变更进行权威分析。
+
         请从以下几个维度进行详细分析：
 
         1. **使用背景**: 
@@ -421,6 +492,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
            - 具体实现了什么功能
            - 核心技术要点和创新之处
            - 与现有功能的关系和差异
+           - 基于代码变更的技术分析
 
         3. **使用方式**:
            - 如何启用和配置这个功能
@@ -437,16 +509,20 @@ class ChangelogReportGenerator(BaseReportGenerator):
         PR标题: {pr_title}
         PR描述: {pr_body}
         总变更行数: {total_changes}
+        
         主要文件变更:
         {file_changes}
+        
+        关键代码变更摘要:
+        {patch_summary}
 
-        请严格按照以下JSON格式返回（每个字段200-400字）：
+        请基于具体的代码变更内容进行分析，严格按照以下JSON格式返回（每个字段200-400字）：
         {{
             "pr_type": "feature|bugfix|doc|refactor|test",
-            "highlight": "功能概要描述(50字以内)",
-            "function_value": "功能价值简述(50字以内)",
+            "highlight": "功能概要描述(50字以上，100字以下)",
+            "function_value": "功能价值简述(50字以上，100字以下)",
             "usage_background": "使用背景详述(200-400字)",
-            "feature_details": "功能详述(200-400字)", 
+            "feature_details": "功能详述，包含技术实现分析(200-400字)", 
             "usage_guide": "使用方式详述(200-400字)",
             "value_proposition": "功能价值详述(200-400字)"
         }}

@@ -40,13 +40,6 @@ class ReportAgent:
                             "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
                         }
                     },
-                    'github-mcp-server-proxy': {
-                        "command": "uv",
-                        "args": ['run', './github_proxy_mcp_server.py', "stdio", "--toolsets", "issues", "--toolsets", "pull_requests", "--toolsets", "repos"],
-                        "env": {
-                            "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-                        }
-                    }
                 }
             },
         ]
