@@ -119,7 +119,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
         请严格按照以下JSON格式返回：
         {{
             "pr_type": "feature|bugfix|doc|refactor|test",
-            "highlight": "关键技术实现方式和原理(50字以内)",
+            "highlight": "pr做了哪些变更(50字以内)",
             "function_value": "功能价值概要，对用户的影响(50字以内)"
         }}
         """
@@ -163,10 +163,10 @@ class ChangelogReportGenerator(BaseReportGenerator):
                     contributor_url = pr.user.get('html_url', '#')
                     
                     report += f"### {pr.title}\n"
-                    report += f"- **PR**: [#{pr.number}]({pr.html_url})\n"
-                    report += f"- **贡献者**: [{contributor_login}]({contributor_url})\n"
-                    report += f"- **技术看点**: {pr.highlight}\n"
-                    report += f"- **功能价值**: {pr.function_value}\n\n"
+                    report += f"- **Related PR:**: [#{pr.number}]({pr.html_url})\n"
+                    report += f"- **Contributor**: [{contributor_login}]({contributor_url})\n"
+                    report += f"- **Change Log**: {pr.highlight}\n"
+                    report += f"- **Feature Value**: {pr.function_value}\n\n"
         
         # 添加统计信息
         total_count = len(analyzed_prs)
