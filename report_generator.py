@@ -135,6 +135,9 @@ class BaseReportGenerator(ReportGeneratorInterface):
     
     def __init__(self):
         self.llm_assistant = self._create_llm_assistant()
+        # 从环境变量读取仓库配置，默认为alibaba/higress
+        self.default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
+        self.default_repo = os.getenv('GITHUB_REPO_NAME', 'higress')
     
     def _create_llm_assistant(self) -> Assistant:
         """创建LLM助手"""
@@ -231,23 +234,27 @@ class BaseReportGenerator(ReportGeneratorInterface):
         
         return pr
     
-    def _get_pr_detailed_info(self, pr_number: int) -> dict:
+    def _get_pr_detailed_info(self, pr_number: int, owner: str = None, repo: str = None) -> dict:
         """获取PR的详细信息，包括文件变更"""
         try:
             from utils.pr_helper import GitHubHelper
             github_helper = GitHubHelper()
             
+            # 使用传入的参数或默认配置
+            owner = owner or self.default_owner
+            repo = repo or self.default_repo
+            
             # 获取PR基本信息
             pr_info = github_helper.get_pull_request(
-                owner="alibaba", 
-                repo="higress", 
+                owner=owner, 
+                repo=repo, 
                 pullNumber=pr_number
             )
             
             # 获取PR文件变更信息
             files_result = github_helper.get_pull_request_files(
-                owner="alibaba", 
-                repo="higress", 
+                owner=owner, 
+                repo=repo, 
                 pullNumber=pr_number
             )
             

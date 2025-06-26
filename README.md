@@ -1,48 +1,92 @@
-## 使用指南
-创建.env文件
+# Higress 报告生成器
 
-克隆官方github mcp 服务器，并生成二进制文件
+基于 AI 的 GitHub 仓库报告生成工具，支持自动生成月报和 Changelog。
 
-````
+## 🚀 快速开始
+
+### 环境准备
+
+1. **克隆并编译 GitHub MCP 服务器**
+```bash
 git clone https://github.com/github/github-mcp-server.git
-cd github-mcp-server # 上一步克隆下来的文件夹
+cd github-mcp-server
 go build -o ../github-mcp-serve ./cmd/github-mcp-server
-````
+```
 
-编译运行
-````
+2. **安装依赖**
+```bash
 uv sync
 chmod +x ./github_proxy_mcp_server.py
-uv run ./main.py
-````
+```
 
-示例提问：帮我生成higress社区2025年4月份的月报
+3. **配置环境变量**
+```bash
+# 必需配置
+export GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
+export DASHSCOPE_API_KEY=your_dashscope_api_key
 
-nohup.txt可以看到调用的日志，运行进度等
+# LLM 配置
+export MODEL_NAME=qwen-max
+export MODEL_SERVER=https://dashscope.aliyuncs.com/compatible-mode/v1
 
-## 环境变量
-````
-DASHSCOPE_API_KEY: (llmapikey)
-GITHUB_PERSONAL_ACCESS_TOKEN= (github访问令牌)
-MODEL_NAME= (模型名称) 
-MODEL_SERVER= (模型服务地址)
-GOOD_PR_NUM=10 (需要生成的亮点pr数)
-````
+# 可选配置
+export GITHUB_REPO_OWNER=alibaba          # 默认：alibaba
+export GITHUB_REPO_NAME=higress           # 默认：higress
+export GOOD_PR_NUM=10                     # 月报亮点PR数量
+```
 
-## 运行原理
-1. **数据获取**：
-   - 调用GitHub Proxy MCP Server获取PR和Issue数据，支持分页和按月份过滤。
-   - 使用增强工具`get_good_pull_requests`进行pr筛选，使用github-mcp-server进行issue筛选
+### 运行
 
-2. **大模型评分**：
-   - 使用LLM对PR进行评分，根据更改代码和pr描述，综合考虑技术复杂度、用户影响范围、代码量，pr类型等因素。
-   - 评分结果按分数降序排列，提取前10个PR作为亮点功能。
+**交互模式**（推荐）：
+```bash
+uv run python report_main.py
+```
 
-3. **月报生成**：
-   - 根据提取的PR和Issue数据，按照预定义格式生成月报内容到控制台。
+**命令行示例**：
+```python
+from report_main import ReportAgent
 
-## 注意
-mcp调用次数非常多(每个pr都要调用mcp进行分析），token量消耗有点大，生成一个月周报预计得10万个token
+agent = ReportAgent()
 
-使用时建议明确指定年月份，比如 帮我生成higress社区2025年4月份的月报
+# 生成月报
+agent.generate_monthly_report(month=4, year=2025)
+
+# 生成 Changelog
+agent.generate_changelog(pr_num_list=[1234, 1235, 1236])
+```
+
+## 📊 功能特性
+
+- **🏢 多仓库支持**：支持任意 GitHub 仓库（alibaba/higress、microsoft/vscode 等）
+- **📝 双报告类型**：月报（按时间筛选）+ Changelog（指定PR列表）
+- **🤖 AI 智能分析**：评分系统自动筛选优质PR
+- **🌍 双语输出**：自动生成中英文版本
+- **⭐ 重要PR增强**：支持重要PR的详细patch分析
+- **📁 文件自动保存**：report.md + report.EN.md
+
+## 🛠️ 实用工具
+
+### PR链接提取器
+
+extract_pr_numbers.py，从包含GitHub链接长文本提取PR编号：
+
+
+
+
+
+## ⚙️ 工作原理
+
+1. **数据获取**：调用 GitHub MCP Server 获取 PR/Issue 数据
+2. **AI 评分**：LLM 分析PR复杂度、影响范围、代码量等
+3. **智能筛选**：按评分排序，提取优质内容
+4. **报告生成**：按预定格式生成中英文报告
+
+## 📋 注意事项
+
+- **访问权限**：确保GitHub Token有目标仓库访问权限
+- **建议**：明确指定年月份以减少不必要的数据获取
+
+---
+
+📝 详细配置说明见 [CONFIG.md](CONFIG.md)
 

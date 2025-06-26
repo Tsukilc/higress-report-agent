@@ -14,7 +14,7 @@ class ReportAgent:
     
     def __init__(self):
         self.llm_assistant = self._init_agent_service()
-    
+
     def _init_agent_service(self):
         """初始化LLM Agent服务"""
         # LLM配置
@@ -59,7 +59,7 @@ class ReportAgent:
 
         return bot
     
-    def generate_monthly_report(self, month: int = None, year: int = None, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
+    def generate_monthly_report(self, month: int = None, year: int = None, owner: str = None, repo: str = None, translate: bool = True) -> str:
         """
         生成月报
         
@@ -94,7 +94,7 @@ class ReportAgent:
             print(f"❌ 月报生成失败: {str(e)}")
             return f"月报生成失败: {str(e)}"
     
-    def generate_changelog(self, pr_num_list: list, important_pr_list: list = None, owner: str = "alibaba", repo: str = "higress", translate: bool = True) -> str:
+    def generate_changelog(self, pr_num_list: list, important_pr_list: list = None, owner: str = None, repo: str = None, translate: bool = True) -> str:
         """
         生成changelog
         
@@ -139,7 +139,14 @@ class ReportAgent:
     def interactive_mode(self):
         """交互模式 - 让用户选择生成什么类型的报告"""
         print("🎉 欢迎使用Higress报告生成器!")
-        print("支持的报告类型:")
+        
+        # 显示当前仓库配置
+        default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
+        default_repo = os.getenv('GITHUB_REPO_NAME', 'higress')
+        print(f"📂 当前仓库配置: {default_owner}/{default_repo}")
+        print("   (可通过环境变量 GITHUB_REPO_OWNER 和 GITHUB_REPO_NAME 修改)")
+        
+        print("\n支持的报告类型:")
         print("1. 月报 (monthly)")
         print("2. Changelog (changelog)")
         print("3. 退出 (exit)")
@@ -174,7 +181,7 @@ class ReportAgent:
                     if not pr_nums_input:
                         print("❌ 请输入有效的PR编号列表")
                         continue
-                    
+
                     try:
                         pr_num_list = [int(x.strip()) for x in pr_nums_input.split(",")]
                     except ValueError:

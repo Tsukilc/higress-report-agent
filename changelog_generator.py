@@ -50,8 +50,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
         """获取changelog的PR列表 - 根据pr_num_list获取，支持重要PR标记"""
         pr_num_list = kwargs.get('pr_num_list', [])
         important_pr_list = kwargs.get('important_pr_list', [])
-        owner = kwargs.get('owner', 'alibaba')
-        repo = kwargs.get('repo', 'higress')
+        owner = kwargs.get('owner') or self.default_owner
+        repo = kwargs.get('repo') or self.default_repo
         
         if not pr_num_list:
             print("警告: 没有提供PR编号列表")
@@ -197,8 +197,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
             
             # 为重要PR获取更详细的文件变更信息，包括patch
             files_result = self.github_helper.get_pull_request_files(
-                owner="alibaba", 
-                repo="higress", 
+                owner=self.default_owner, 
+                repo=self.default_repo, 
                 pullNumber=pr_number
             )
             
@@ -450,11 +450,6 @@ class ChangelogReportGenerator(BaseReportGenerator):
         if important_count > 0:
             section += f"（包含{important_count}项重要更新）"
         section += "\n\n"
-        
-        # 贡献者统计
-        contributors = set(pr.user.get('login', '未知') for pr in analyzed_prs if pr.user.get('login'))
-        if contributors and '未知' not in contributors:
-            section += f"**贡献者**: {len(contributors)}位开发者参与了本次发布\n\n"
         
         section += "感谢所有贡献者的辛勤付出！🎉\n"
         

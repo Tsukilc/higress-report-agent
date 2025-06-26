@@ -1,50 +1,108 @@
-## Usage Guide
+# Higress Report Generator
 
-Create a .env file
+AI-powered GitHub repository report generation tool for automated monthly reports and changelogs.
 
-Clone the official GitHub MCP server and generate the binary file:
+## 🚀 Quick Start
 
-```
+### Prerequisites
+
+1. **Clone and build GitHub MCP Server**
+```bash
 git clone https://github.com/github/github-mcp-server.git
-cd github-mcp-server # The folder cloned in the previous step
+cd github-mcp-server
 go build -o ../github-mcp-serve ./cmd/github-mcp-server
 ```
 
-Compile and Run:
-
-```
+2. **Install dependencies**
+```bash
 uv sync
 chmod +x ./github_proxy_mcp_server.py
-uv run ./main.py
 ```
 
-Example Question: Generate the monthly report for the Higress community for April 2025.
+3. **Configure environment variables**
+```bash
+# Required
+export GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
+export DASHSCOPE_API_KEY=your_dashscope_api_key
 
-You can view the invocation logs, progress, etc., in nohup.txt.
+# LLM Configuration
+export MODEL_NAME=qwen-max
+export MODEL_SERVER=https://dashscope.aliyuncs.com/compatible-mode/v1
 
-## Environment Variables
-
+# Optional
+export GITHUB_REPO_OWNER=alibaba          # Default: alibaba
+export GITHUB_REPO_NAME=higress           # Default: higress
+export GOOD_PR_NUM=10                     # Number of highlighted PRs
 ```
-DASHSCOPE_API_KEY: (llmapikey)
-GITHUB_PERSONAL_ACCESS_TOKEN= (GitHub access token)
-MODEL_NAME= (Model name)
-MODEL_SERVER= (Model server address)
-GOOD_PR_NUM=10 (Number of highlight PRs to generate)
+
+### Usage
+
+**Interactive Mode** (Recommended):
+```bash
+uv run python report_main.py
 ```
 
-## Operating Principle
+**Command Line Example**:
+```python
+from report_main import ReportAgent
 
-1. **Data Acquisition**:
-   - Call the GitHub Proxy MCP Server to obtain PR and Issue data, supporting pagination and filtering by month.
-   - Use the enhancement tool `get_good_pull_requests` to filter PRs and github-mcp-server to filter issues.
-2. **Large Model Scoring**:
-   - Use LLM to score PRs based on factors such as code changes, PR descriptions, technical complexity, user impact, code volume, and PR type.
-   - The scoring results are sorted in descending order, and the top 10 PRs are extracted as highlight features.
-3. **Monthly Report Generation**:
-   - Generate the monthly report content to the console according to the predefined format based on the extracted PR and Issue data.
+agent = ReportAgent()
 
-## Note
+# Generate monthly report
+agent.generate_monthly_report(month=4, year=2025)
 
-The number of MCP calls is very high (each PR needs to call MCP for analysis), and the token consumption is a bit large. Generating a monthly report is expected to consume 100,000 tokens.
+# Generate changelog
+agent.generate_changelog(pr_num_list=[1234, 1235, 1236])
+```
 
-When using, it is recommended to explicitly specify the year and month, such as "Generate the monthly report for the Higress community for April 2025".
+## 📊 Features
+
+- **🏢 Multi-Repository Support**: Works with any GitHub repository (alibaba/higress, etc.)
+- **📝 Dual Report Types**: Monthly reports (time-filtered) + Changelogs (specific PR lists)
+- **🤖 AI-Powered Analysis**: 129-point scoring system for automatic quality PR selection
+- **🌍 Bilingual Output**: Automatically generates Chinese and English versions
+- **⭐ Enhanced Important PRs**: Detailed patch analysis for important PRs
+- **📁 Auto File Save**: Generates report.md + report.EN.md
+
+## 🛠️ Utility Tools
+
+### PR Link Extractor
+
+Quickly extract PR numbers from GitHub links:
+
+```python
+# Example link: https://github.com/alibaba/higress/pull/1234
+# Result: 1234
+
+# Batch extraction (comma-separated):
+# https://github.com/alibaba/higress/pull/1234,https://github.com/alibaba/higress/pull/1235
+# Result: 1234,1235
+```
+
+In interactive mode, you can directly paste GitHub links and the system will automatically extract PR numbers.
+
+## 🎯 Use Cases
+
+| Scenario | Example                                            |
+|----------|----------------------------------------------------|
+| Monthly Report | `Generate Higress community report for April 2025` |
+| Quick Changelog | Input PR list: `1234,1235,1236`                    |
+| Important Release | Specify important PRs + regular PR list            |
+                |
+
+## ⚙️ How It Works
+
+1. **Data Retrieval**: Calls GitHub MCP Server to fetch PR/Issue data
+2. **AI Scoring**: LLM analyzes PR complexity, impact scope, code volume, etc.
+3. **Smart Filtering**: Sorts by score and extracts quality content
+4. **Report Generation**: Generates bilingual reports in predefined formats
+
+## 📋 Notes
+
+- **Token Usage**: Generating one monthly report requires ~100k tokens
+- **Access Permissions**: Ensure GitHub Token has access to target repository
+- **Recommendation**: Specify exact year/month to reduce unnecessary data fetching
+
+---
+
+📝 See [CONFIG.md](CONFIG.md) for detailed configuration instructions
