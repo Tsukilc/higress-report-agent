@@ -1,35 +1,117 @@
-## 使用指南
-创建.env文件
+# 🤖 Higress Report Generation Agent: An Intelligent Assistant for Automating Open Source Monthly Reports and Changelogs
 
+## 📖 Project Background
+
+In the daily maintenance of open source projects, regularly generating monthly reports and changelogs is essential. Traditionally, developers need to manually filter PRs, analyze code changes, and write feature descriptions. This process is time-consuming, labor-intensive, and prone to missing important information.
+
+**Higress Report Generation Agent** was created to address this. It is an AI-powered intelligent report generation system that automatically analyzes PR data from GitHub repositories and generates high-quality monthly reports and changelogs.
+
+## DEMO
+https://github.com/user-attachments/assets/99183dff-c30e-4beb-91cc-6c183627cbcc
+
+## 🎯 Core Features
+
+### 🔥 Intelligent PR Analysis
+- **Multi-dimensional Evaluation**: Scoring system based on code complexity, actual code changes, and user impact
+- **Community Comment Integration**: Integrates comments from bots like Lingma-Agent, providing a more comprehensive PR analysis perspective
+- **Key PR Identification**: Automatically identifies critical feature updates and provides detailed technical analysis
+
+### 📊 Dual Report Modes
+- **Monthly Report Mode**: Automatically filters high-quality PRs by time to generate community monthly reports
+- **Changelog Mode**: Generates version changelogs grouped by feature type based on a specified PR list
+
+### 🌐 Multi-Repository Support
+- **Environment Variable Configuration**: Supports any GitHub repository without code modification
+- **Flexible Switching**: Easily adapt to different project needs through simple configuration
+
+## 🏗️ System Architecture
+
+### Overall Architecture Diagram
+![img_1.png](images/img_1.png)
+
+### Core Flowchart
+![img_2.png](images/img_2.png)
+
+## 💡 Intelligent Integration with Lingma-Agent
+
+### In-depth Mining of Comment Data
+
+A highlight of the project is its ability to read and analyze all comments in PRs, including those from AI bots like **Lingma-Agent**. This integration brings the following advantages:
+
+1. **Code Quality Assessment**: Lingma-Agent's code review opinions are included in the analysis
+2. **Technical Risk Identification**: Potential issues flagged by bots are considered in scoring
+3. **Community Interaction Insights**: Comparative analysis of human and machine comments
+4. **Enhanced Intelligence**: AI-to-AI collaboration for more accurate technical judgments
+
+
+## 🚀 Getting Started
+
+### Environment Setup
+
+1. **Clone and Build the GitHub MCP Server**
+```bash
 git clone https://github.com/github/github-mcp-server.git
 
 cd github-mcp-server
 
-go build -o ../github-mcp-serve ./cmd/github-mcp-server
+# build github-mcp-server
+go build -o ../github-mcp-serve ./cmd/github-mcp-server 
 
+chmod u+x ../github-mcp-serve
+```
+
+2. **Install Dependencies**
+```bash
 uv sync
+```
 
-chmod +x ./github_proxy_mcp_server.py
+3. **Configure Environment Variables**
+```bash
+# Required configuration
+export GITHUB_PERSONAL_ACCESS_TOKEN=your_github_token
+export DASHSCOPE_API_KEY=your_dashscope_api_key
 
-uv run ./main.py
+# LLM configuration
+export MODEL_NAME=qwen-max
+export MODEL_SERVER=https://dashscope.aliyuncs.com/compatible-mode/v1
 
-示例提问：帮我生成higress社区2025年4月份的月报
-nohup.txt可以看到调用的日志，运行进度等
+# Optional configuration
+export GITHUB_REPO_OWNER=alibaba          # Default: alibaba
+export GITHUB_REPO_NAME=higress           # Default: higress
+export GOOD_PR_NUM=10                     # Number of highlight PRs in monthly report
+```
 
-## 运行原理
-1. **数据获取**：
-   - 调用GitHub Proxy MCP Server获取PR和Issue数据，支持分页和按月份过滤。
-   - 使用增强工具`get_good_pull_requests`进行pr筛选，使用github-mcp-server进行issue筛选
+### Start the Service
 
-2. **大模型评分**：
-   - 使用LLM对PR进行评分，根据更改代码和pr描述，综合考虑技术复杂度、用户影响范围、代码量，pr类型等因素。
-   - 评分结果按分数降序排列，提取前10个PR作为亮点功能。
+```bash
+# Run the report generator
+python report_main.py
+```
 
-3. **月报生成**：
-   - 根据提取的PR和Issue数据，按照预定义格式生成月报内容到控制台。
+### Interactive Usage
 
-## 注意
-mcp调用次数非常多(每个pr都要调用mcp进行分析），token量消耗有点大，生成一个月周报预计得10万个token
+```
+🤖 Higress Report Generation Agent
+Current repository: alibaba/higress
+==================================================
 
-使用时建议明确指定年月份，比如 帮我生成higress社区2025年4月份的月报
+Please select the type of report to generate:
+1. 📊 Monthly Report
+2. 📋 Changelog
 
+Enter your choice (1-2): 1
+
+Enter month (1-12, default is current month): 12
+Enter year (default is current year): 2024
+Enter list of important PR numbers (comma-separated integers, e.g. `1234,5678`, leave blank for auto-detection): 1234,1235
+Generate English translation? (y/n, default y): y
+
+🔄 Generating monthly report...
+✅ PR list fetched
+🤖 AI analysis in progress...
+📊 Report generated
+🌐 English translation completed
+
+Report saved to: report.md
+English version saved to: report.EN.md
+``` 
