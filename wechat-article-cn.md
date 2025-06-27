@@ -40,7 +40,35 @@ dependencies = [
 - **模板方法模式**：定义了统一的报告生成流程
 - **MCP协议**：实现与GitHub的标准化通信
 
-![img_3.png](images/img_3.png)
+```mermaid
+graph TB
+    subgraph "系统架构"
+        A["项目配置 pyproject.toml<br/>- qwen-agent[code-interpreter,gui]<br/>- mcp协议支持<br/>- GitHub API集成"] --> B["核心组件"]
+        
+        B --> C["报告生成器工厂 ReportGeneratorFactory"]
+        B --> D["GitHub MCP 服务器"]
+        B --> E["Qwen大模型助手"]
+        
+        C --> F["月报生成器<br/>MonthlyReportGenerator"]
+        C --> G["变更日志生成器<br/>ChangelogReportGenerator"]
+        
+        D --> H["PR数据采集<br/>- 获取PR列表<br/>- 评论分析<br/>- 文件变更"]
+        
+        E --> I["AI智能分析<br/>- PR评分<br/>- 技术分析<br/>- 价值评估"]
+        
+        F --> J["月报输出<br/>- 优质PR筛选<br/>- 社区动态<br/>- Good First Issues"]
+        G --> K["变更日志输出<br/>- 分类整理<br/>- 详细描述<br/>- 统计信息"]
+        
+        L["Lingma-Agent评论"] --> H
+        M["GitHub PR Comments"] --> H
+    end
+    
+    style A fill:#e1f5fe
+    style C fill:#f3e5f5
+    style D fill:#e8f5e8
+    style E fill:#fff3e0
+    style L fill:#fce4ec
+```
 
 ## 使用qwen-agent框架搭建
 
