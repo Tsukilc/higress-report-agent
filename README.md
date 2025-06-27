@@ -6,6 +6,9 @@ In the daily maintenance of open source projects, regularly generating monthly r
 
 **Higress Report Generation Agent** was created to address this. It is an AI-powered intelligent report generation system that automatically analyzes PR data from GitHub repositories and generates high-quality monthly reports and changelogs.
 
+## DEMO
+https://github.com/user-attachments/assets/99183dff-c30e-4beb-91cc-6c183627cbcc
+
 ## 🎯 Core Features
 
 ### 🔥 Intelligent PR Analysis
