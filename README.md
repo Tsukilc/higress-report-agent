@@ -24,10 +24,10 @@ In the daily maintenance of open source projects, regularly generating monthly r
 ## 🏗️ System Architecture
 
 ### Overall Architecture Diagram
-![img_1.png](img_1.png)
+![img_1.png](images/img_1.png)
 
 ### Core Flowchart
-![img_2.png](img_2.png)
+![img_2.png](images/img_2.png)
 
 ## 💡 Intelligent Integration with Lingma-Agent
 
@@ -100,7 +100,7 @@ Enter your choice (1-2): 1
 
 Enter month (1-12, default is current month): 12
 Enter year (default is current year): 2024
-Enter list of important PR numbers (comma separated, leave blank for auto-detection): 1234,1235
+Enter list of important PR numbers (comma-separated integers, e.g. `1234,5678`, leave blank for auto-detection): 1234,1235
 Generate English translation? (y/n, default y): y
 
 🔄 Generating monthly report...

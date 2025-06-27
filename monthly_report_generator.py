@@ -1,7 +1,7 @@
 """
 月报生成器 - 实现月报特有的PR获取和报告格式生成逻辑
 """
-
+from datetime import timezone
 from typing import List, Dict, Any
 import datetime
 from report_generator import BaseReportGenerator, PRInfo
@@ -27,7 +27,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         
         # 如果没有指定月份和年份，使用当前月份
         if not month or not year:
-            current_date = datetime.datetime.now()
+            current_date = datetime.datetime.now(timezone.utc)
             month = month or current_date.month
             year = year or current_date.year
         
@@ -38,6 +38,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         # 获取合并的PR列表，按月份过滤
         pr_list = []
         page = 1
+        # 魔数，一般20页就扫完了
         max_pages = 20
         
         while page <= max_pages:
@@ -209,9 +210,6 @@ class MonthlyReportGenerator(BaseReportGenerator):
     
     def generate_report(self, analyzed_prs: List[PRInfo]) -> str:
         """生成月报格式的报告"""
-        # 获取当前日期信息
-        current_date = datetime.datetime.now()
-        
         # 生成报告头部
         report = "# higress社区月报\n\n"
         

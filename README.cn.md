@@ -24,11 +24,11 @@
 ## 🏗️ 系统架构
 
 ### 整体架构图
-![img_1.png](img_1.png)
+![img_1.png](images/img_1.png)
 
 
 ### 核心流程图
-![img_2.png](img_2.png)
+![img_2.png](images/img_2.png)
 
 
 ## 💡 与Lingma-Agent的智能联动
