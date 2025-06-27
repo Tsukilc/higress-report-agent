@@ -14,7 +14,6 @@ class MonthlyReportGenerator(BaseReportGenerator):
     
     def __init__(self):
         super().__init__()
-        self.github_helper = GitHubHelper()
         self.issue_helper = IssueHelper()
     
     def get_pr_list(self, **kwargs) -> List[PRInfo]:
@@ -70,22 +69,13 @@ class MonthlyReportGenerator(BaseReportGenerator):
                     continue
                 
                 pr_number = pr_data.get('number', 0)
-                pr_info = PRInfo(
-                    number=pr_number,
-                    title=pr_data.get('title', ''),
-                    html_url=pr_data.get('html_url', ''),
-                    user=pr_data.get('user', {}),
-                    highlight='',  # 待LLM分析
-                    function_value='',  # 待LLM分析
-                    score=0,
-                    is_important=pr_number in important_pr_list  # 标记重要PR
-                )
+                pr_info = self._create_pr_info(pr_data, is_important=pr_number in important_pr_list)
                 pr_list.append(pr_info)
             
             # 检查是否还需要继续获取
             if filtered_prs:
                 last_pr = filtered_prs[-1]
-                last_pr_year, last_pr_month = self._extract_year_month_from_date(
+                last_pr_year, last_pr_month = GitHubHelper.extract_year_month_from_date(
                     last_pr.get("merged_at", "")
                 )
                 # 如果最后一个PR的日期早于目标月份，停止获取
@@ -111,16 +101,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
                         )
                         
                         if pr_data and pr_data.get("merged_at"):
-                            pr_info = PRInfo(
-                                number=pr_data.get('number', 0),
-                                title=pr_data.get('title', ''),
-                                html_url=pr_data.get('html_url', ''),
-                                user=pr_data.get('user', {}),
-                                highlight='',
-                                function_value='',
-                                score=0,
-                                is_important=True
-                            )
+                            pr_info = self._create_pr_info(pr_data, is_important=True)
                             pr_list.append(pr_info)
                             print(f"✅ 已添加重要PR #{pr_num}")
                     except Exception as e:
@@ -384,6 +365,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         
         return cleaned_title or "功能更新"
     
+
     def _filter_prs_by_month(self, prs_data: List[Dict[str, Any]], month: int, year: int) -> List[Dict[str, Any]]:
         """根据年份和月份过滤PR列表"""
         if not month or not year or not isinstance(prs_data, list):
@@ -396,40 +378,10 @@ class MonthlyReportGenerator(BaseReportGenerator):
             if not merged_at:
                 continue
 
-            pr_year, pr_month = self._extract_year_month_from_date(merged_at)
+            pr_year, pr_month = GitHubHelper.extract_year_month_from_date(merged_at)
             if pr_year is not None and pr_month is not None and pr_year == year and pr_month == month:
                 filtered_prs.append(pr)
 
         return filtered_prs
     
-    def _extract_year_month_from_date(self, date_str: str) -> tuple:
-        """从日期字符串中安全地提取年份和月份"""
-        if not date_str:
-            return None, None
-
-        try:
-            import re
-            from dateutil import parser as date_parser
-            
-            # 方法1: ISO格式
-            try:
-                if 'T' in date_str and (date_str.endswith('Z') or '+' in date_str):
-                    dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    return dt.year, dt.month
-            except ValueError:
-                pass
-
-            # 正则匹配
-            date_match = re.search(r'(\d{4})-(\d{1,2})-(\d{1,2})', date_str)
-            if date_match:
-                year = int(date_match.group(1))
-                month = int(date_match.group(2))
-                if 1 <= month <= 12:
-                    return year, month
-
-            # 方法3: dateutil
-            dt = date_parser.parse(date_str)
-            return dt.year, dt.month
-
-        except Exception:
-            return None, None 
+ 

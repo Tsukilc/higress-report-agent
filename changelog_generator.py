@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 import json
 from collections import defaultdict
 from report_generator import BaseReportGenerator, PRInfo, PRType
-from utils.pr_helper import GitHubHelper
+
 
 
 class ChangelogReportGenerator(BaseReportGenerator):
@@ -14,7 +14,6 @@ class ChangelogReportGenerator(BaseReportGenerator):
     
     def __init__(self):
         super().__init__()
-        self.github_helper = GitHubHelper()
         self._setup_changelog_llm()
     
     def _setup_changelog_llm(self):
@@ -75,16 +74,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
                 
                 if pr_data:
                     is_important = pr_number in important_pr_list
-                    pr_info = PRInfo(
-                        number=pr_data.get('number', pr_number),
-                        title=pr_data.get('title', ''),
-                        html_url=pr_data.get('html_url', ''),
-                        user=pr_data.get('user', {}),
-                        highlight='',  # 待LLM分析
-                        function_value='',  # 待LLM分析
-                        score=0,
-                        is_important=is_important
-                    )
+                    pr_info = self._create_pr_info(pr_data, is_important)
                     pr_list.append(pr_info)
                     status = "重要PR" if is_important else "普通PR"
                     print(f"✓ 成功获取{status} #{pr_number}: {pr_info.title}")

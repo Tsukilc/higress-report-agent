@@ -138,6 +138,9 @@ class BaseReportGenerator(ReportGeneratorInterface):
         # 从环境变量读取仓库配置，默认为alibaba/higress
         self.default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
         self.default_repo = os.getenv('GITHUB_REPO_NAME', 'higress')
+        # 创建GitHub助手实例，避免重复创建
+        from utils.pr_helper import GitHubHelper
+        self.github_helper = GitHubHelper()
     
     def _create_llm_assistant(self) -> Assistant:
         """创建LLM助手"""
@@ -242,29 +245,26 @@ class BaseReportGenerator(ReportGeneratorInterface):
     def _get_pr_detailed_info(self, pr_number: int, owner: str = None, repo: str = None) -> dict:
         """获取PR的详细信息，包括文件变更和评论"""
         try:
-            from utils.pr_helper import GitHubHelper
-            github_helper = GitHubHelper()
-            
             # 使用传入的参数或默认配置
             owner = owner or self.default_owner
             repo = repo or self.default_repo
             
             # 获取PR基本信息
-            pr_info = github_helper.get_pull_request(
+            pr_info = self.github_helper.get_pull_request(
                 owner=owner, 
                 repo=repo, 
                 pullNumber=pr_number
             )
             
             # 获取PR文件变更信息
-            files_result = github_helper.get_pull_request_files(
+            files_result = self.github_helper.get_pull_request_files(
                 owner=owner, 
                 repo=repo, 
                 pullNumber=pr_number
             )
             
             # 获取PR评论信息
-            comments_result = self._get_pr_comments(owner, repo, pr_number, github_helper)
+            comments_result = self._get_pr_comments(owner, repo, pr_number, self.github_helper)
             
             if not isinstance(files_result, list):
                 return {
@@ -320,13 +320,14 @@ class BaseReportGenerator(ReportGeneratorInterface):
             
             # 提取评论的关键信息，限制评论数量和长度
             comments_summary = []
-            for comment in comments_data[:10]:  # 最多10条评论
+            for comment in comments_data:
                 if isinstance(comment, dict) and comment.get("body"):
                     comment_info = {
                         "author": comment.get("user", {}).get("login", "unknown"),
                         "body": comment.get("body", "")[:300],  # 限制评论长度
                         "created_at": comment.get("created_at", "")
                     }
+                    print(comment_info)
                     comments_summary.append(comment_info)
             
             return comments_summary
@@ -346,6 +347,19 @@ class BaseReportGenerator(ReportGeneratorInterface):
             formatted_comments.append(formatted_comment)
         
         return "\n".join(formatted_comments)
+    
+    def _create_pr_info(self, pr_data: Dict[str, Any], is_important: bool = False) -> PRInfo:
+        """创建PRInfo对象的辅助方法"""
+        return PRInfo(
+            number=pr_data.get('number', 0),
+            title=pr_data.get('title', ''),
+            html_url=pr_data.get('html_url', ''),
+            user=pr_data.get('user', {}),
+            highlight='',  # 待LLM分析
+            function_value='',  # 待LLM分析
+            score=0,
+            is_important=is_important
+        )
     
     def _analyze_important_pr(self, pr: PRInfo) -> PRInfo:
         """分析重要PR - 获取详细信息（通用方法）"""
@@ -413,10 +427,7 @@ class BaseReportGenerator(ReportGeneratorInterface):
             pr_details = self._get_pr_detailed_info(pr_number)
             
             # 为重要PR获取更详细的文件变更信息，包括patch
-            from utils.pr_helper import GitHubHelper
-            github_helper = GitHubHelper()
-            
-            files_result = github_helper.get_pull_request_files(
+            files_result = self.github_helper.get_pull_request_files(
                 owner=self.default_owner, 
                 repo=self.default_repo, 
                 pullNumber=pr_number
