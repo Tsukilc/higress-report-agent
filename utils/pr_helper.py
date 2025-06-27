@@ -121,8 +121,6 @@ class GitHubHelper:
         """
         # 设置环境变量
         env = os.environ.copy()
-        if "GITHUB_PERSONAL_ACCESS_TOKEN" not in env:
-            raise ValueError("缺少GITHUB_PERSONAL_ACCESS_TOKEN环境变量")
 
         # 构建JSON-RPC请求
         request = {
