@@ -27,10 +27,65 @@ https://github.com/user-attachments/assets/99183dff-c30e-4beb-91cc-6c183627cbcc
 ## 🏗️ System Architecture
 
 ### Overall Architecture Diagram
-![img_1.png](images/img_1.png)
+```mermaid
+graph TB
+    A[User Interaction] --> B[Report Generation Agent]
+    B --> C[Monthly Report Generator]
+    B --> D[Changelog Generator]
+
+    C --> E[GitHub API]
+    D --> E
+
+    E --> F[PR Data Fetcher]
+    F --> G[Comment Data Fetcher]
+    G --> H[File Change Analyzer]
+
+    H --> I[AI Analysis Engine]
+    I --> J[Qwen Model]
+
+    I --> K[Intelligent Scoring]
+    I --> L[Function Classification]
+    I --> M[Technical Insights]
+
+    K --> N[Report Composer]
+    L --> N
+    M --> N
+
+    N --> O[Chinese Report]
+    N --> P[English Translation]
+
+```
 
 ### Core Flowchart
-![img_2.png](images/img_2.png)
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant M as Main Program
+    participant G as GitHub Helper
+    participant L as Lingma Agent
+    participant A as AI Analysis Engine
+    participant R as Report Generator
+
+    U->>M: Select report type
+    M->>G: Fetch PR list
+    G->>M: Return PR data
+
+    loop For each PR
+        M->>G: Fetch PR details
+        G->>M: Return basic info
+        M->>G: Fetch code changes
+        G->>M: Return file changes
+        M->>G: Fetch comment data
+        Note over G,L: Includes comments from Lingma-Agent
+        G->>M: Return comment list
+        M->>A: Send analysis request
+        A->>M: Return analysis result
+    end
+
+    M->>R: Generate report
+    R->>M: Return report content
+    M->>U: Display final report
+```
 
 ## 💡 Intelligent Integration with Lingma-Agent
 
