@@ -134,134 +134,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
         print(f"分析完成，共处理{len(analyzed_prs)}个PR")
         return analyzed_prs
     
-    def _analyze_important_pr(self, pr: PRInfo) -> PRInfo:
-        """分析重要PR - 获取详细信息"""
-        # 首先进行基础分析
-        pr = self._analyze_single_pr(pr)
-        
-        # 然后进行详细分析
-        detailed_prompt = self._get_detailed_analysis_prompt()
-        try:
-            # 为重要PR获取更详细的信息，包括patch
-            pr_details = self._get_important_pr_detailed_info(pr.number)
-            if not pr_details:
-                print(f"无法获取PR #{pr.number}的详细信息，跳过详细分析")
-                return pr
-                
-            # 准备评论摘要
-            comments_summary = self._format_comments_for_analysis(pr_details.get("comments", []))
-            
-            # 构建完整的详细分析请求
-            full_prompt = detailed_prompt.format(
-                pr_number=pr.number,
-                pr_title=pr.title,
-                pr_body=pr_details.get("body", "")[:1000],  # 增加长度用于详细分析
-                total_changes=pr_details.get("total_changes", 0),
-                file_changes=json.dumps(pr_details.get("file_changes", [])[:10], indent=2, ensure_ascii=False),
-                patch_summary=pr_details.get("patch_summary", ""),
-                comments_summary=comments_summary
-            )
-            
-            # 使用LLM进行详细分析
-            messages = [{'role': 'user', 'content': full_prompt}]
-            response_text = self._get_llm_response(messages)
-            
-            # 解析详细分析结果
-            result = json.loads(response_text)
-            
-            # 构建详细分析内容
-            detailed_sections = []
-            
-            if result.get("usage_background"):
-                detailed_sections.append(f"**使用背景**\n\n{result['usage_background']}")
-                
-            if result.get("feature_details"):
-                detailed_sections.append(f"**功能详述**\n\n{result['feature_details']}")
-                
-            if result.get("usage_guide"):
-                detailed_sections.append(f"**使用方式**\n\n{result['usage_guide']}")
-                
-            if result.get("value_proposition"):
-                detailed_sections.append(f"**功能价值**\n\n{result['value_proposition']}")
-            
-            pr.detailed_analysis = "\n\n".join(detailed_sections)
-            print(f"重要PR #{pr.number}详细分析完成")
-            
-        except Exception as e:
-            print(f"重要PR #{pr.number}详细分析失败: {str(e)}")
-            pr.detailed_analysis = "详细分析暂时不可用，请参考基础信息。"
-        
-        return pr
-    
-    def _get_important_pr_detailed_info(self, pr_number: int) -> dict:
-        """获取重要PR的详细信息，包括完整的patch内容"""
-        try:
-            # 获取基础信息
-            pr_details = self._get_pr_detailed_info(pr_number)
-            
-            # 为重要PR获取更详细的文件变更信息，包括patch
-            files_result = self.github_helper.get_pull_request_files(
-                owner=self.default_owner, 
-                repo=self.default_repo, 
-                pullNumber=pr_number
-            )
-            
-            if not isinstance(files_result, list):
-                return pr_details
-            
-            # 构建详细的文件变更信息，包含完整patch
-            enhanced_file_changes = []
-            patch_summary_parts = []
-            
-            for file_info in files_result[:8]:  # 限制文件数量避免内容过长
-                filename = file_info.get("filename", "")
-                additions = file_info.get("additions", 0)
-                deletions = file_info.get("deletions", 0)
-                patch_content = file_info.get("patch", "")
-                
-                # 构建增强的文件信息
-                enhanced_file = {
-                    "filename": filename,
-                    "additions": additions,
-                    "deletions": deletions,
-                    "status": file_info.get("status", "modified"),
-                    "patch": patch_content[:2000] if patch_content else ""  # 保留更多patch内容
-                }
-                enhanced_file_changes.append(enhanced_file)
-                
-                # 构建patch摘要
-                if patch_content:
-                    # 提取关键的代码变更信息
-                    patch_lines = patch_content.split('\n')
-                    key_changes = []
-                    
-                    for line in patch_lines[:50]:  # 分析前50行patch
-                        line = line.strip()
-                        if line.startswith('+') and not line.startswith('+++'):
-                            # 新增的代码行
-                            if len(line) > 5 and not line.startswith('+ //') and not line.startswith('+ #'):
-                                key_changes.append(f"新增: {line[1:].strip()[:100]}")
-                        elif line.startswith('-') and not line.startswith('---'):
-                            # 删除的代码行
-                            if len(line) > 5 and not line.startswith('- //') and not line.startswith('- #'):
-                                key_changes.append(f"删除: {line[1:].strip()[:100]}")
-                    
-                    if key_changes:
-                        file_summary = f"文件 {filename} ({additions}+/{deletions}-):\n"
-                        file_summary += "\n".join(key_changes[:5])  # 最多5个关键变更
-                        patch_summary_parts.append(file_summary)
-            
-            # 更新详细信息
-            pr_details["file_changes"] = enhanced_file_changes
-            pr_details["patch_summary"] = "\n\n".join(patch_summary_parts[:5]) if patch_summary_parts else ""
-            
-            print(f"✅ 已获取重要PR #{pr_number}的增强详细信息（包含patch内容）")
-            return pr_details
-            
-        except Exception as e:
-            print(f"获取重要PR #{pr_number}详细信息失败: {str(e)}")
-            # 降级到基础信息
-            return self._get_pr_detailed_info(pr_number)
+
 
     def _get_analysis_prompt(self) -> str:
         """获取changelog专用的分析prompt"""
@@ -477,11 +350,11 @@ class ChangelogReportGenerator(BaseReportGenerator):
         return dict(grouped)
     
     def _get_detailed_analysis_prompt(self) -> str:
-        """获取重要PR的详细分析prompt"""
+        """获取重要PR的详细分析prompt（changelog专用版本）"""
         return """
-        你是一个专业的技术文档撰写专家，请对以下重要PR进行深度分析，为release note撰写详细的功能介绍。
+        你是一个专业的技术文档撰写专家，请对以下重要PR进行深度分析，为changelog撰写详细的功能介绍。
 
-        你将获得完整的代码变更信息（包括patch内容），请基于这些具体的代码变更进行权威分析。
+        你将获得完整的代码变更信息（包括patch内容）和社区评论，请基于这些具体信息进行权威分析。
 
         请从以下几个维度进行详细分析：
 

@@ -59,15 +59,17 @@ class ReportAgent:
 
         return bot
     
-    def generate_monthly_report(self, month: int = None, year: int = None, owner: str = None, repo: str = None, translate: bool = True) -> str:
+    def generate_monthly_report(self, month: int = None, year: int = None, important_pr_list: list = None, owner: str = None, repo: str = None, translate: bool = True) -> str:
         """
         生成月报
         
         Args:
             month: 月份，默认当前月
             year: 年份，默认当前年
+            important_pr_list: 重要PR编号列表
             owner: 仓库所有者
             repo: 仓库名称
+            translate: 是否生成英文翻译
             
         Returns:
             月报内容字符串
@@ -78,14 +80,21 @@ class ReportAgent:
             # 使用工厂模式创建月报生成器
             generator = ReportGeneratorFactory.create_generator("monthly")
             
+            # 准备参数
+            kwargs = {
+                'month': month,
+                'year': year,
+                'owner': owner,
+                'repo': repo,
+                'translate': translate
+            }
+            
+            # 如果有重要PR列表，添加到参数中
+            if important_pr_list:
+                kwargs['important_pr_list'] = important_pr_list
+            
             # 生成月报
-            report = generator.create_report(
-                month=month,
-                year=year,
-                owner=owner,
-                repo=repo,
-                translate=translate
-            )
+            report = generator.create_report(**kwargs)
             
             print("✅ 月报生成完成!")
             return report
@@ -159,19 +168,39 @@ class ReportAgent:
                     # 生成月报
                     month_input = input("请输入月份 (回车使用当前月): ").strip()
                     year_input = input("请输入年份 (回车使用当前年): ").strip()
+                    
+                    # 询问重要PR
+                    print("\n💡 重要PR将获得详细分析，包含使用背景、功能详述、使用方式、功能价值等完整信息")
+                    important_input = input("请输入重要PR编号列表 (用逗号分隔，如: 1234,1235，留空则无重要PR): ").strip()
+                    important_pr_list = []
+                    if important_input:
+                        try:
+                            important_pr_list = [int(x.strip()) for x in important_input.split(",")]
+                            print(f"✅ 已设置重要PR: {important_pr_list}")
+                        except ValueError:
+                            print("❌ 重要PR编号格式不正确，将忽略重要PR设置")
+                            important_pr_list = []
+                    
                     translate_input = input("是否生成英文翻译? (y/n, 默认y): ").strip().lower()
                     
                     month = int(month_input) if month_input else None
                     year = int(year_input) if year_input else None
                     translate = translate_input != 'n'
                     
-                    report = self.generate_monthly_report(month=month, year=year, translate=translate)
+                    report = self.generate_monthly_report(
+                        month=month, 
+                        year=year, 
+                        important_pr_list=important_pr_list,
+                        translate=translate
+                    )
                     print("\n" + "="*50)
                     print("📋 月报生成完成:")
                     print("="*50)
                     print("✅ 中文报告已保存到: report.md")
                     if translate:
                         print("✅ 英文报告已保存到: report.EN.md")
+                    if important_pr_list:
+                        print(f"⭐ 重要PR {important_pr_list} 已进行详细分析")
                     print("="*50)
                     
                 elif choice == "2":

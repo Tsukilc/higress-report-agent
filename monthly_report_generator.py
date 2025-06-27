@@ -24,6 +24,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         month = kwargs.get('month')
         year = kwargs.get('year')
         per_page = kwargs.get('perPage', 100)
+        important_pr_list = kwargs.get('important_pr_list', [])
         
         # 如果没有指定月份和年份，使用当前月份
         if not month or not year:
@@ -32,6 +33,8 @@ class MonthlyReportGenerator(BaseReportGenerator):
             year = year or current_date.year
         
         print(f"获取{year}年{month}月的PR列表...")
+        if important_pr_list:
+            print(f"重要PR列表: {important_pr_list}")
         
         # 获取合并的PR列表，按月份过滤
         pr_list = []
@@ -66,14 +69,16 @@ class MonthlyReportGenerator(BaseReportGenerator):
                 if pr_data.get("draft", False):
                     continue
                 
+                pr_number = pr_data.get('number', 0)
                 pr_info = PRInfo(
-                    number=pr_data.get('number', 0),
+                    number=pr_number,
                     title=pr_data.get('title', ''),
                     html_url=pr_data.get('html_url', ''),
                     user=pr_data.get('user', {}),
                     highlight='',  # 待LLM分析
                     function_value='',  # 待LLM分析
-                    score=0
+                    score=0,
+                    is_important=pr_number in important_pr_list  # 标记重要PR
                 )
                 pr_list.append(pr_info)
             
@@ -90,7 +95,39 @@ class MonthlyReportGenerator(BaseReportGenerator):
             
             page += 1
         
-        print(f"成功获取{len(pr_list)}个PR，准备进行质量评估...")
+        # 检查是否有重要PR不在月份范围内，如果有则单独获取
+        if important_pr_list:
+            existing_pr_numbers = {pr.number for pr in pr_list}
+            missing_important_prs = [pr_num for pr_num in important_pr_list if pr_num not in existing_pr_numbers]
+            
+            if missing_important_prs:
+                print(f"发现{len(missing_important_prs)}个重要PR不在当月范围内，单独获取: {missing_important_prs}")
+                for pr_num in missing_important_prs:
+                    try:
+                        pr_data = self.github_helper.get_pull_request(
+                            owner=owner,
+                            repo=repo,
+                            pullNumber=pr_num
+                        )
+                        
+                        if pr_data and pr_data.get("merged_at"):
+                            pr_info = PRInfo(
+                                number=pr_data.get('number', 0),
+                                title=pr_data.get('title', ''),
+                                html_url=pr_data.get('html_url', ''),
+                                user=pr_data.get('user', {}),
+                                highlight='',
+                                function_value='',
+                                score=0,
+                                is_important=True
+                            )
+                            pr_list.append(pr_info)
+                            print(f"✅ 已添加重要PR #{pr_num}")
+                    except Exception as e:
+                        print(f"❌ 获取重要PR #{pr_num}失败: {str(e)}")
+        
+        important_count = len([pr for pr in pr_list if pr.is_important])
+        print(f"成功获取{len(pr_list)}个PR（其中{important_count}个重要PR），准备进行质量评估...")
         return pr_list
     
     def _get_analysis_prompt(self) -> str:
@@ -146,7 +183,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         """
     
     def analyze_prs_with_llm(self, pr_list: List[PRInfo]) -> List[PRInfo]:
-        """月报的LLM分析 - 包含评分和筛选逻辑"""
+        """月报的LLM分析 - 包含评分和筛选逻辑，支持重要PR详细分析"""
         analyzed_prs = []
         
         print(f"开始分析{len(pr_list)}个PR...")
@@ -155,8 +192,13 @@ class MonthlyReportGenerator(BaseReportGenerator):
             try:
                 print(f"正在分析PR #{pr.number}: {pr.title} ({i+1}/{len(pr_list)})")
                 
-                # 使用基础分析方法
-                analyzed_pr = self._analyze_single_pr(pr)
+                # 根据PR是否标记为重要来选择分析方法
+                if pr.is_important:
+                    # 重要PR使用详细分析
+                    analyzed_pr = self._analyze_important_pr(pr)
+                else:
+                    # 普通PR使用基础分析
+                    analyzed_pr = self._analyze_single_pr(pr)
                 
                 # 提取评分（如果LLM返回了评分）
                 if hasattr(analyzed_pr, 'score') and analyzed_pr.score:
@@ -201,10 +243,36 @@ class MonthlyReportGenerator(BaseReportGenerator):
                 report += f"- 相关issue：{issue['html_url']}\n"
                 report += f"- issue概要：{issue.get('body', '')[:100]}...\n\n"
         
-        # 添加本月亮点功能部分
-        if analyzed_prs:
+        # 分离重要PR和普通PR
+        important_prs = [pr for pr in analyzed_prs if pr.is_important]
+        normal_prs = [pr for pr in analyzed_prs if not pr.is_important]
+        
+        # 添加重要功能详述部分（如果有重要PR）
+        if important_prs:
+            report += "## 🌟 本月重要功能详述\n\n"
+            for i, pr in enumerate(important_prs, 1):
+                function_name = self._extract_function_name(pr.title)
+                contributor_login = pr.user.get('login', '未知')
+                contributor_url = pr.user.get('html_url', '#')
+                
+                report += f"### {i}. {function_name}\n\n"
+                report += f"**相关PR**: [#{pr.number}]({pr.html_url}) | "
+                report += f"**贡献者**: [{contributor_login}]({contributor_url})\n\n"
+                
+                if pr.detailed_analysis:
+                    # 使用详细分析内容
+                    report += f"{pr.detailed_analysis}\n\n"
+                else:
+                    # 降级为基础信息
+                    report += f"**技术看点**: {pr.highlight}\n\n"
+                    report += f"**功能价值**: {pr.function_value}\n\n"
+                
+                report += "---\n\n"
+        
+        # 添加本月亮点功能部分（普通PR）
+        if normal_prs:
             report += "## 📌本月亮点功能\n"
-            for pr in analyzed_prs:
+            for pr in normal_prs:
                 # 提取功能名称（从标题中提取关键词）
                 function_name = self._extract_function_name(pr.title)
                 
@@ -241,6 +309,63 @@ class MonthlyReportGenerator(BaseReportGenerator):
         except Exception as e:
             print(f"获取good first issue失败: {str(e)}")
             return []
+    
+    def _get_detailed_analysis_prompt(self) -> str:
+        """获取重要PR的详细分析prompt（月报专用版本）"""
+        return """
+        你是一个专业的技术文档撰写专家，请对以下重要PR进行深度分析，为月报撰写详细的功能介绍。
+
+        你将获得完整的代码变更信息（包括patch内容）和社区评论，请基于这些具体信息进行权威分析。
+
+        请从以下几个维度进行详细分析：
+
+        1. **使用背景**: 
+           - 解决了什么问题或满足了什么需求
+           - 为什么需要这个功能/修复
+           - 目标用户群体
+
+        2. **功能详述**:
+           - 具体实现了什么功能
+           - 核心技术要点和创新之处
+           - 与现有功能的关系和差异
+           - 基于代码变更的技术分析
+
+        3. **使用方式**:
+           - 如何启用和配置这个功能
+           - 典型的使用场景和示例
+           - 注意事项和最佳实践
+
+        4. **功能价值**:
+           - 为用户带来的具体好处
+           - 对系统性能、稳定性、易用性的提升
+           - 对社区发展的意义
+
+        请分析以下重要PR：
+        PR编号: #{pr_number}
+        PR标题: {pr_title}
+        PR描述: {pr_body}
+        总变更行数: {total_changes}
+        
+        主要文件变更:
+        {file_changes}
+        
+        关键代码变更摘要:
+        {patch_summary}
+        
+        社区评论摘要:
+        {comments_summary}
+
+        请基于具体的代码变更内容和社区反馈进行分析，严格按照以下JSON格式返回：
+        {{
+            "highlight": "关键技术实现方式和原理(50字以上，100字以下)",
+            "function_value": "功能价值概要，对社区的影响(50字以上，100字以下)",
+            "score": "你给出的整数评分（1-129）",
+            "usage_background": "使用背景详述(200-400字)",
+            "feature_details": "功能详述，包含技术实现分析(200-400字)", 
+            "usage_guide": "使用方式详述(200-400字)",
+            "value_proposition": "功能价值详述(200-400字)"
+        }}
+        """
     
     def _extract_function_name(self, title: str) -> str:
         """从PR标题中提取功能名称"""
