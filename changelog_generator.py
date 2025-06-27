@@ -148,6 +148,9 @@ class ChangelogReportGenerator(BaseReportGenerator):
                 print(f"无法获取PR #{pr.number}的详细信息，跳过详细分析")
                 return pr
                 
+            # 准备评论摘要
+            comments_summary = self._format_comments_for_analysis(pr_details.get("comments", []))
+            
             # 构建完整的详细分析请求
             full_prompt = detailed_prompt.format(
                 pr_number=pr.number,
@@ -155,7 +158,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
                 pr_body=pr_details.get("body", "")[:1000],  # 增加长度用于详细分析
                 total_changes=pr_details.get("total_changes", 0),
                 file_changes=json.dumps(pr_details.get("file_changes", [])[:10], indent=2, ensure_ascii=False),
-                patch_summary=pr_details.get("patch_summary", "")
+                patch_summary=pr_details.get("patch_summary", ""),
+                comments_summary=comments_summary
             )
             
             # 使用LLM进行详细分析
@@ -284,6 +288,9 @@ class ChangelogReportGenerator(BaseReportGenerator):
         总变更行数: {total_changes}
         文件变更详情:
         {file_changes}
+        
+        社区评论摘要:
+        {comments_summary}
 
         请严格按照以下JSON格式返回：
         {{
@@ -510,8 +517,11 @@ class ChangelogReportGenerator(BaseReportGenerator):
         
         关键代码变更摘要:
         {patch_summary}
+        
+        社区评论摘要:
+        {comments_summary}
 
-        请基于具体的代码变更内容进行分析，严格按照以下JSON格式返回（每个字段200-400字）：
+        请基于具体的代码变更内容和社区反馈进行分析，严格按照以下JSON格式返回（每个字段200-400字）：
         {{
             "pr_type": "feature|bugfix|doc|refactor|test",
             "highlight": "功能概要描述(50字以上，100字以下)",

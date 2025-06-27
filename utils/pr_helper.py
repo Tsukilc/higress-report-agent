@@ -87,6 +87,27 @@ class GitHubHelper:
         result = self._call_github_mcp_tool("get_pull_request_files", params)
         return result if isinstance(result, list) else []
     
+    def get_pull_request_comments(self, owner: str, repo: str, pullNumber: int) -> List[Dict[str, Any]]:
+        """
+        获取PR的评论信息
+        
+        Args:
+            owner: 仓库所有者
+            repo: 仓库名称
+            pullNumber: PR编号
+            
+        Returns:
+            评论列表
+        """
+        params = {
+            "owner": owner,
+            "repo": repo,
+            "pullNumber": pullNumber
+        }
+        
+        result = self._call_github_mcp_tool("get_pull_request_comments", params)
+        return result if isinstance(result, list) else []
+    
     def _call_github_mcp_tool(self, tool_name: str, params: Dict[str, Any]) -> Any:
         """
         调用GitHub MCP工具

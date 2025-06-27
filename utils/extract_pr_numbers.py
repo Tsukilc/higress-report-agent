@@ -8,6 +8,7 @@ def extract_pr_numbers(text):
     return pr_nums
 
 if __name__ == "__main__":
+    # 把pr_link的文本放在pr_text变量中
     pr_text = """
 feat(ai-proxy): support Amazon Bedrock Image Generation by @daixijun in #2212
 fix: Fix the incorrect rewrite config generated for Nacos 3 MCP Servers by @CH3CHO in #2211

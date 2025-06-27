@@ -192,16 +192,21 @@ class BaseReportGenerator(ReportGeneratorInterface):
                 "title": pr.title,
                 "body": pr_details.get("body", "")[:500] if pr_details.get("body") else "",
                 "total_changes": pr_details.get("total_changes", 0),
-                "file_changes": pr_details.get("file_changes", [])
+                "file_changes": pr_details.get("file_changes", []),
+                "comments": pr_details.get("comments", [])
             }
             
-            # 3. 构建完整的分析请求
+            # 3. 准备评论摘要
+            comments_summary = self._format_comments_for_analysis(pr_info["comments"])
+            
+            # 4. 构建完整的分析请求
             full_prompt = analysis_prompt.format(
                 pr_number=pr.number,
                 pr_title=pr.title,
                 pr_body=pr_info["body"],
                 total_changes=pr_info["total_changes"],
-                file_changes=json.dumps(pr_info["file_changes"][:5], indent=2, ensure_ascii=False)  # 限制文件数量
+                file_changes=json.dumps(pr_info["file_changes"][:5], indent=2, ensure_ascii=False),  # 限制文件数量
+                comments_summary=comments_summary
             )
             
             # 4. 使用LLM分析
@@ -235,7 +240,7 @@ class BaseReportGenerator(ReportGeneratorInterface):
         return pr
     
     def _get_pr_detailed_info(self, pr_number: int, owner: str = None, repo: str = None) -> dict:
-        """获取PR的详细信息，包括文件变更"""
+        """获取PR的详细信息，包括文件变更和评论"""
         try:
             from utils.pr_helper import GitHubHelper
             github_helper = GitHubHelper()
@@ -258,11 +263,15 @@ class BaseReportGenerator(ReportGeneratorInterface):
                 pullNumber=pr_number
             )
             
+            # 获取PR评论信息
+            comments_result = self._get_pr_comments(owner, repo, pr_number, github_helper)
+            
             if not isinstance(files_result, list):
                 return {
                     "body": pr_info.get("body", "") if pr_info else "",
                     "total_changes": 0,
-                    "file_changes": []
+                    "file_changes": [],
+                    "comments": comments_result
                 }
                 
             # 计算总变更行数
@@ -283,7 +292,8 @@ class BaseReportGenerator(ReportGeneratorInterface):
             return {
                 "body": pr_info.get("body", "") if pr_info else "",
                 "total_changes": total_changes,
-                "file_changes": file_changes
+                "file_changes": file_changes,
+                "comments": comments_result
             }
             
         except Exception as e:
@@ -291,8 +301,51 @@ class BaseReportGenerator(ReportGeneratorInterface):
             return {
                 "body": "",
                 "total_changes": 0,
-                "file_changes": []
+                "file_changes": [],
+                "comments": []
             }
+    
+    def _get_pr_comments(self, owner: str, repo: str, pr_number: int, github_helper) -> List[Dict[str, str]]:
+        """获取PR评论信息"""
+        try:
+            # 调用MCP工具获取PR评论
+            comments_data = github_helper.get_pull_request_comments(
+                owner=owner,
+                repo=repo,
+                pullNumber=pr_number
+            )
+            
+            if not isinstance(comments_data, list):
+                return []
+            
+            # 提取评论的关键信息，限制评论数量和长度
+            comments_summary = []
+            for comment in comments_data[:10]:  # 最多10条评论
+                if isinstance(comment, dict) and comment.get("body"):
+                    comment_info = {
+                        "author": comment.get("user", {}).get("login", "unknown"),
+                        "body": comment.get("body", "")[:300],  # 限制评论长度
+                        "created_at": comment.get("created_at", "")
+                    }
+                    comments_summary.append(comment_info)
+            
+            return comments_summary
+            
+        except Exception as e:
+            print(f"获取PR #{pr_number}评论失败: {str(e)}")
+            return []
+    
+    def _format_comments_for_analysis(self, comments: List[Dict[str, str]]) -> str:
+        """格式化评论信息用于AI分析"""
+        if not comments:
+            return "暂无评论"
+        
+        formatted_comments = []
+        for i, comment in enumerate(comments):
+            formatted_comment = f"评论{i} - {comment.get('author', 'unknown')}: {comment.get('body', '')}"
+            formatted_comments.append(formatted_comment)
+        
+        return "\n".join(formatted_comments)
     
     def _get_llm_response(self, messages: List[Dict[str, str]]) -> str:
         """获取LLM响应"""
