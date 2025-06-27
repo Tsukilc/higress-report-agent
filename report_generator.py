@@ -327,7 +327,6 @@ class BaseReportGenerator(ReportGeneratorInterface):
                         "body": comment.get("body", "")[:300],  # 限制评论长度
                         "created_at": comment.get("created_at", "")
                     }
-                    print(comment_info)
                     comments_summary.append(comment_info)
             
             return comments_summary
