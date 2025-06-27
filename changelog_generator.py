@@ -3,7 +3,6 @@ Changelog生成器 - 实现changelog特有的PR获取和报告格式生成逻辑
 """
 
 from typing import List, Dict, Any
-import json
 from collections import defaultdict
 from report_generator import BaseReportGenerator, PRInfo, PRType
 
