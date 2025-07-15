@@ -135,6 +135,9 @@ export GOOD_PR_NUM=10                     # 月报亮点PR数量
 ```bash
 # 运行报告生成器
 python report_main.py
+
+# 或者你也可以使用命令行参数运行
+python report_main.py --mode=2 --choice=1 --month=7 --year=2025
 ```
 
 ### 交互式使用

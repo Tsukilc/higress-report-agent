@@ -13,3 +13,5 @@ nohup.txt
 # Python
 *.egg-info
 __pycache__
+
+github-mcp-serve

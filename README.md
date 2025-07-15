@@ -141,6 +141,9 @@ export GOOD_PR_NUM=10                     # Number of highlight PRs in monthly r
 ```bash
 # Run the report generator
 python report_main.py
+
+# or you can run with cmd args
+python report_main.py --mode=2 --choice=1 --month=7 --year=2025
 ```
 
 ### Interactive Usage
