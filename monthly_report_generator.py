@@ -18,8 +18,8 @@ class MonthlyReportGenerator(BaseReportGenerator):
     
     def get_pr_list(self, **kwargs) -> List[PRInfo]:
         """获取月报的PR列表 - 独立实现月报PR获取逻辑"""
-        owner = kwargs.get('owner') or self.default_owner
-        repo = kwargs.get('repo') or self.default_repo
+        owner = self.owner
+        repo = self.repo
         month = kwargs.get('month')
         year = kwargs.get('year')
         per_page = kwargs.get('perPage', 100)
@@ -156,7 +156,7 @@ class MonthlyReportGenerator(BaseReportGenerator):
         社区评论摘要:
         {comments_summary}
 
-        请严格按照以下JSON格式返回：
+        请严格按照以下JSON格式返回，不要添加任何解释、语言标记、代码块符号（如 ```json）：
         {{
             "highlight": "关键技术实现方式和原理(50字以上，100字以下)",
             "function_value": "功能价值概要，对社区的影响(50字以上，100字以下)",
@@ -278,8 +278,8 @@ class MonthlyReportGenerator(BaseReportGenerator):
         """获取新手友好的Issues"""
         try:
             issues = self.issue_helper.get_good_first_issues(
-                owner=self.default_owner,
-                repo=self.default_repo,
+                owner=self.owner,
+                repo=self.repo,
                 state='open',
                 labels=['good first issue'],
                 perPage=2

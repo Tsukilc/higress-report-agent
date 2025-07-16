@@ -59,6 +59,9 @@ class ReportGeneratorInterface(ABC):
         pass
     
     def create_report(self, **kwargs) -> str:
+        self.owner = kwargs.get('owner', 'alibaba')
+        self.repo = kwargs.get('repo', 'higress')
+
         """模板方法 - 定义报告生成的完整流程"""
         # 1. 获取PR列表
         pr_list = self.get_pr_list(**kwargs)
@@ -135,9 +138,6 @@ class BaseReportGenerator(ReportGeneratorInterface):
     
     def __init__(self):
         self.llm_assistant = self._create_llm_assistant()
-        # 从环境变量读取仓库配置，默认为alibaba/higress
-        self.default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
-        self.default_repo = os.getenv('GITHUB_REPO_NAME', 'higress')
         # 创建GitHub助手实例，避免重复创建
         from utils.pr_helper import GitHubHelper
         self.github_helper = GitHubHelper()
@@ -246,8 +246,8 @@ class BaseReportGenerator(ReportGeneratorInterface):
         """获取PR的详细信息，包括文件变更和评论"""
         try:
             # 使用传入的参数或默认配置
-            owner = owner or self.default_owner
-            repo = repo or self.default_repo
+            owner = owner or self.owner
+            repo = repo or self.repo
             
             # 获取PR基本信息
             pr_info = self.github_helper.get_pull_request(
@@ -427,8 +427,8 @@ class BaseReportGenerator(ReportGeneratorInterface):
             
             # 为重要PR获取更详细的文件变更信息，包括patch
             files_result = self.github_helper.get_pull_request_files(
-                owner=self.default_owner, 
-                repo=self.default_repo, 
+                owner=self.owner,
+                repo=self.repo,
                 pullNumber=pr_number
             )
             

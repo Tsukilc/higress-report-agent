@@ -105,6 +105,8 @@ class ReportAgent:
         try:
             # 使用工厂模式创建月报生成器
             generator = ReportGeneratorFactory.create_generator("monthly")
+            owner = owner or os.getenv('GITHUB_REPO_OWNER', 'alibaba')
+            repo = repo or os.getenv("GITHUB_REPO_NAME", "higress")
 
             # 准备参数
             kwargs = {
@@ -232,7 +234,7 @@ class ReportAgent:
                         print(f"⭐ 重要PR {important_pr_list} 已进行详细分析")
                     print("="*50)
 
-                elif choice == AgentConfig.MODE_INTERACTIVE:
+                elif choice == AgentConfig.REPORT_CHANGELOG:
                     # 生成changelog
                     pr_nums_input = input(
                         "请输入PR编号列表 (用逗号分隔，如: 1234,1235,1236): ").strip()
@@ -269,10 +271,15 @@ class ReportAgent:
                         "是否生成英文翻译? (y/n, 默认y): ").strip().lower()
                     translate = translate_input != 'n'
 
+                    owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
+                    repo = os.getenv('GITHUB_REPO_NAME', 'higress')
+
                     report = self.generate_changelog(
                         pr_num_list=pr_num_list,
                         important_pr_list=important_pr_list,
-                        translate=translate
+                        translate=translate,
+                        owner=owner,
+                        repo=repo
                     )
                     print("\n" + "="*50)
                     print("📋 Changelog生成完成:")

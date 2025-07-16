@@ -33,7 +33,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
            - 技术看点：关键技术实现方式和原理(50字以上，100字以内)
            - 功能价值：功能价值概要，对用户的影响(50字以上，100字以内)
 
-        请严格按照以下JSON格式返回：
+        请严格按照以下JSON格式返回，不要添加任何解释、语言标记、代码块符号（如 ```json）：
         {
             "pr_type": "feature|bugfix|doc|refactor|test",
             "highlight": "关键技术实现方式和原理(50字以上，100字以内)",
@@ -48,8 +48,8 @@ class ChangelogReportGenerator(BaseReportGenerator):
         """获取changelog的PR列表 - 根据pr_num_list获取，支持重要PR标记"""
         pr_num_list = kwargs.get('pr_num_list', [])
         important_pr_list = kwargs.get('important_pr_list', [])
-        owner = kwargs.get('owner') or self.default_owner
-        repo = kwargs.get('repo') or self.default_repo
+        owner = self.owner
+        repo = self.repo
         
         if not pr_num_list:
             print("警告: 没有提供PR编号列表")
@@ -154,7 +154,7 @@ class ChangelogReportGenerator(BaseReportGenerator):
         社区评论摘要:
         {comments_summary}
 
-        请严格按照以下JSON格式返回：
+        请严格按照以下JSON格式返回，不要添加任何解释、语言标记、代码块符号（如 ```json）：
         {{
             "pr_type": "feature|bugfix|doc|refactor|test",
             "highlight": "pr做了哪些变更(50字以上，100字以下)",
