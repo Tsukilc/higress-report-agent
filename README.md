@@ -17,6 +17,7 @@ https://github.com/user-attachments/assets/99183dff-c30e-4beb-91cc-6c183627cbcc
 - **Multi-dimensional Evaluation**: Scoring system based on code complexity, actual code changes, and user impact
 - **Community Comment Integration**: Integrates comments from bots like Lingma-Agent, providing a more comprehensive PR analysis perspective
 - **Key PR Identification**: Automatically identifies critical feature updates and provides detailed technical analysis
+- **Support the generation of monthly reports in the form of dialogues** 
 
 ### 📊 Dual Report Modes
 - **Monthly Report Mode**: Automatically filters high-quality PRs by time to generate community monthly reports
