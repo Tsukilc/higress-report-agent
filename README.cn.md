@@ -127,6 +127,7 @@ export MODEL_SERVER=https://dashscope.aliyuncs.com/compatible-mode/v1
 export GITHUB_REPO_OWNER=alibaba          # 默认：alibaba
 export GITHUB_REPO_NAME=higress           # 默认：higress
 export GOOD_PR_NUM=10                     # 月报亮点PR数量
+export AGENT=true                         # 启用agent模式
 ```
 
 

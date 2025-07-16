@@ -5,9 +5,10 @@
 import os
 from dotenv import load_dotenv
 from qwen_agent.agents import Assistant
-from qwen_agent.utils.output_beautify import typewriter_print
+from tools import GenerateMonthlyReport, GenerateChangelog
 from agent_config import AgentConfig
 from report_generator import ReportGeneratorFactory
+from qwen_agent.gui import WebUI
 
 
 class ReportAgent:
@@ -36,14 +37,30 @@ class ReportAgent:
                 'mcpServers': {
                     'github-mcp-serve': {
                         'command': './github-mcp-serve',
-                        "args": ["stdio", "--toolsets", "issues", "--toolsets", "pull_requests", "--toolsets", "repos"],
+                        "args": ["stdio", "--toolsets", "issues", "--toolsets", "pull_requests","--read-only", "--toolsets", "repos"],
                         "env": {
                             "GITHUB_PERSONAL_ACCESS_TOKEN": os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
                         }
                     },
                 }
             },
+            'generate_monthly_report_mcp',
+            'generate_changelog_mcp',
         ]
+
+        system_prompt = f"""
+        你扮演一个报告自动生成助手，严禁调用 github 的写工具
+        1. 首先你需要根据用户输入的需求，判断用户是生成月报还是changelog还是修改报告，translate 参数默认是 true
+        2. 如果是生成完整（并非修改）月报，你需要调用`generate_monthly_report_mcp`工具来生成月报
+        3. 如果是生成完整（并非修改）changelog，你需要调用`generate_changelog_mcp`工具来生成changelog
+        4. 如果是用户让你修改报告，你需要根据用户的需求，更改生成的报告而不要调用生成报告工具.但用户没提及的部分一定不要修改。
+        5. 如果你认为调用函数的信息不全，比如用户没给年月份，是否翻译英文，你一定需要主动询问用户，直到获取到足够的信息。
+
+        示例1（这个 pr 明显不是让你生成月报，而是修改报告，不能调用generate_monthly_report_mcp和generate_changelog_mcp，应该自行分析）：
+        Fix an incorrect config proper...
+        这个 pr 描述的不太对，帮我改一下功能价值，详细一点
+
+        """
 
         # 验证GitHub token
         github_token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
@@ -51,12 +68,19 @@ class ReportAgent:
             raise ValueError(
                 "Missing required environment variable GITHUB_PERSONAL_ACCESS_TOKEN")
 
+        owner = os.getenv("GITHUB_REPO_OWNER", "")
+        repo = os.getenv("GITHUB_REPO_NAME", "")
+        system_prompt += "\n6. 你可以参考以下GitHub仓库信息来生成报告：\n" \
+                         f"   - 仓库所有者: {owner}\n" \
+                         f"   - 仓库名称: {repo}\n" \
+
         # 创建Agent
         bot = Assistant(
             llm=llm_cfg,
             function_list=tools,
             name='higress-report-agent',
-            description="我是Higress社区报告生成助手，可以生成月报和changelog！"
+            description="我是Higress社区报告生成助手，可以生成月报和changelog！",
+            system_message=system_prompt,
         )
 
         return bot
@@ -147,7 +171,7 @@ class ReportAgent:
             print(f"❌ Changelog生成失败: {str(e)}")
             return f"Changelog生成失败: {str(e)}"
 
-    def interactive_mode(self):
+    def terminal_interactive_mode(self):
         """交互模式 - 让用户选择生成什么类型的报告"""
         print("🎉 欢迎使用Higress报告生成器!")
 
@@ -271,6 +295,12 @@ class ReportAgent:
             except Exception as e:
                 print(f"❌ 发生错误: {str(e)}")
 
+    def interactive_mode(self):
+        """ web交互模式 - 让用户选择生成什么类型的报告"""
+        print("🎉 欢迎使用Higress报告生成器!")
+        bot = self.llm_assistant
+        WebUI(bot).run()
+
     def cmd_line_args_mode(self, config: AgentConfig):
         """命令行参数模式 - 通过命令行参数生成报告"""
         print("🎉 欢迎使用Higress报告生成器!")
@@ -331,11 +361,16 @@ def main():
     # 创建报告代理
     agent = ReportAgent()
 
+    isAgent =os.getenv("AGENT", "true")
+
     # 启动代理
     if config.mode == config.MODE_ARGS:
         agent.cmd_line_args_mode(config)
-    else:
+    elif isAgent == "true":
         agent.interactive_mode()
+    else:
+        agent.terminal_interactive_mode()
+
 
 
 if __name__ == '__main__':
