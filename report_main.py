@@ -78,8 +78,8 @@ class ReportAgent:
         bot = Assistant(
             llm=llm_cfg,
             function_list=tools,
-            name='higress-report-agent',
-            description="我是Higress社区报告生成助手，可以生成月报和changelog！",
+            name='github-report-agent',
+            description="我是github报告生成助手，可以生成月报和changelog！",
             system_message=system_prompt,
         )
 
@@ -175,11 +175,19 @@ class ReportAgent:
 
     def terminal_interactive_mode(self):
         """交互模式 - 让用户选择生成什么类型的报告"""
-        print("🎉 欢迎使用Higress报告生成器!")
+        print("🎉 欢迎使用github报告生成器!")
 
         # 显示当前仓库配置
-        default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')
-        default_repo = os.getenv('GITHUB_REPO_NAME', 'higress')
+        default_owner = os.getenv('GITHUB_REPO_OWNER')
+        default_repo = os.getenv('GITHUB_REPO_NAME')
+        
+        if not default_owner or not default_repo:
+            print("❗️ 未设置GITHUB_REPO_OWNER或GITHUB_REPO_NAME环境变量")
+            raise ValueError(
+                "请设置GITHUB_REPO_OWNER和GITHUB_REPO_NAME环境变量，以便正确生成报告")
+            
+
+        
         print(f"📂 当前仓库配置: {default_owner}/{default_repo}")
         print("   (可通过环境变量 GITHUB_REPO_OWNER 和 GITHUB_REPO_NAME 修改)")
 
@@ -290,7 +298,7 @@ class ReportAgent:
                     print("="*50)
 
                 elif choice == AgentConfig.EXIT:
-                    print("👋 感谢使用Higress报告生成器，再见!")
+                    print("👋 感谢使用github报告生成器，再见!")
                     break
 
                 else:
@@ -304,13 +312,13 @@ class ReportAgent:
 
     def interactive_mode(self):
         """ web交互模式 - 让用户选择生成什么类型的报告"""
-        print("🎉 欢迎使用Higress报告生成器!")
+        print("🎉 欢迎使用github报告生成器!")
         bot = self.llm_assistant
         WebUI(bot).run()
 
     def cmd_line_args_mode(self, config: AgentConfig):
         """命令行参数模式 - 通过命令行参数生成报告"""
-        print("🎉 欢迎使用Higress报告生成器!")
+        print("🎉 欢迎使用github报告生成器!")
 
         # 显示当前仓库配置
         default_owner = os.getenv('GITHUB_REPO_OWNER', 'alibaba')

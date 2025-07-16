@@ -153,7 +153,7 @@ python report_main.py --mode=2 --choice=1 --month=7 --year=2025
 ### Interactive Usage
 
 ```
-🤖 Higress Report Generation Agent
+🤖 Github Report Generation Agent
 Current repository: alibaba/higress
 ==================================================
 

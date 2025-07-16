@@ -35,7 +35,7 @@ class AgentConfig:
     @classmethod
     def from_args(cls) -> 'AgentConfig':
         """从命令行参数构建配置"""
-        parser = argparse.ArgumentParser(description='Higress报告生成工具')
+        parser = argparse.ArgumentParser(description='github报告生成工具')
 
         # 基本参数
         parser.add_argument('--mode', type=int, choices=[cls.MODE_INTERACTIVE, cls.MODE_ARGS],
