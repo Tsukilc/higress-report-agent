@@ -9,6 +9,8 @@ In the daily maintenance of open source projects, regularly generating monthly r
 ## DEMO
 https://github.com/user-attachments/assets/99183dff-c30e-4beb-91cc-6c183627cbcc
 
+（The qwen-turbo model has been tested）
+
 ## 🎯 Core Features
 
 ### 🔥 Intelligent PR Analysis
