@@ -215,6 +215,12 @@ class BaseReportGenerator(ReportGeneratorInterface):
             # 4. 使用LLM分析
             messages = [{'role': 'user', 'content': full_prompt}]
             response_text = self._get_llm_response(messages)
+            # 去除首尾的 ```json 或 ```
+            if response_text.strip().startswith("```json"):
+                response_text = response_text.strip()[7:]
+            if response_text.strip().endswith("```"):
+                response_text = response_text.strip()[:-3]
+            response_text = response_text.strip()
             
             # 5. 解析结果
             result = json.loads(response_text)
@@ -391,7 +397,13 @@ class BaseReportGenerator(ReportGeneratorInterface):
             # 使用LLM进行详细分析
             messages = [{'role': 'user', 'content': full_prompt}]
             response_text = self._get_llm_response(messages)
-            
+            # 去除首尾的 ```json 或 ```
+            if response_text.strip().startswith("```json"):
+                response_text = response_text.strip()[7:]
+            if response_text.strip().endswith("```"):
+                response_text = response_text.strip()[:-3]
+            response_text = response_text.strip()
+
             # 解析详细分析结果
             result = json.loads(response_text)
             
